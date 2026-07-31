@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Sign up</h1>
+<form method="POST">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input name="username" placeholder="Username" required>
+  <input name="gmail" type="email" placeholder="Email" required>
+  <input name="password" type="password" placeholder="Password" required>
+  <button type="submit">Create account</button>
+</form>
+{% endblock %}

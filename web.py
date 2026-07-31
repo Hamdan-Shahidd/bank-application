@@ -2,9 +2,11 @@ import os
 from flask import Flask, render_template, request, redirect, flash, session
 from banking import Bank
 from storage import SqliteStorage
+from flask_wtf.csrf import CSRFProtect
 
 app = Flask(__name__)
 app.secret_key = "dev-only-change-this"
+csrf = CSRFProtect(app)
 
 def current_user():
     uid = session.get("user_id")
@@ -93,5 +95,4 @@ def transfer():
             return redirect("/transfer")
         flash("Transfer complete")
         return redirect("/dashboard")
-
     return render_template("transfer.html")
