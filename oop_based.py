@@ -1,5 +1,14 @@
 import random
 import sqlite3
+import hashlib, os, hmac
+from pathlib import Path
+
+
+
+def hash_password(password):
+    salt = os.urandom(16)
+    h = hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1)
+    return f"{salt.hex()}:{h.hex()}"
 
 class User:
     def __init__(self,username,gmail,account_number,password,balance=0,user_id=None):
@@ -11,7 +20,10 @@ class User:
         self.balance = balance
 
     def check_password(self, password):
-        return password == self.password
+        salt_hex, hash_hex = self.password.split(":")
+        h = hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt_hex), n=2**14, r=8, p=1)
+        return hmac.compare_digest(h.hex(), hash_hex)
+    
     def deposit(self , ammount):
         if ammount<=0:
             raise ValueError("Ammount must be greater than 0.")
@@ -28,11 +40,10 @@ class User:
 class SqliteStorage:
     def __init__(self, path="bank.db"):
         self.conn = sqlite3.connect(path)
-        # Help performing lookup by column name in load_all.
         self.conn.row_factory = sqlite3.Row
-        # The below one is only runs once. After the table are created the next runs do nothing and are
-        # safe because our schema include IF NOT EXISTS.
-        with open("schema.sql") as f:
+        self.conn.execute("PRAGMA foreign_keys = ON")
+        schema = Path(__file__).parent / "schema.sql"
+        with open(schema) as f:
             self.conn.executescript(f.read())
 
     def load_all(self):
@@ -76,29 +87,47 @@ class SqliteStorage:
                     (user.balance, user.user_id),
                 )
 
+    def _to_user(self, row):
+        return User(
+            username=row["username"],
+            gmail=row["gmail"],
+            account_number=row["account_number"],
+            password=row["password"],
+            balance=row["balance"],
+            user_id=row["id"],
+        )
+
+    def find_by_gmail(self, gmail):
+        row = self.conn.execute(
+            "SELECT * FROM users WHERE gmail = ?", (gmail,)).fetchone()
+        return self._to_user(row) if row else None
+
+    def find_by_account(self, account_number):
+        row = self.conn.execute(
+            "SELECT * FROM users WHERE account_number = ?", (account_number,)).fetchone()
+        return self._to_user(row) if row else None
+
+    def find_by_id(self, user_id):
+        row = self.conn.execute(
+            "SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        return self._to_user(row) if row else None
+
 class Bank:
     def __init__(self , storage):
         self.storage = storage
-        self.users = {u.gmail: u for u in storage.load_all()}
-
 
     def find(self , gmail):
-        return self.users.get(gmail)
+        return self.storage.find_by_gmail(gmail)
 
     def find_by_account(self , account_number):
-        for user in self.users.values():
-            if user.account_number == account_number:
-                return user
-        return None
+        return self.storage.find_by_account(account_number)
 
     def sign_up(self , username , gmail , password):
         if self.find(gmail):
             raise ValueError("Gmail already taken")
 
-        user = User(username , gmail , None , password)
-        self.storage.create(user)
-        self.users[gmail] = user
-        return user
+        user = User(username , gmail , None , hash_password(password))
+        return self.storage.create(user)
     
     def log_in(self , username , password):
         user = self.find(username)
@@ -110,12 +139,16 @@ class Bank:
         recipient = self.find_by_account(recipient_account)
         if recipient is None:
             raise ValueError("Mo user with this credentials")
-        if recipient is sender:
+        if recipient.user_id == sender.user_id:
             raise ValueError("Can't send ammount to yourself")
         sender.widraw(amount)
         recipient.deposit(amount)
         self.storage.update(sender , recipient)
         return recipient
+    def deposit(self, user, amount):
+        user.deposit(amount)
+        self.storage.update(user)
+        return user
 
 class App:
     def __init__(self , bank):
@@ -141,7 +174,7 @@ class App:
         password = input("Enter your password: ")
         try:
             user = self.bank.sign_up(username,gmail,password)
-        except ValueError as v:
+        except (ValueError , RuntimeError) as v:
             print(v)
             return
         print(f"User created successfully. Your account number is {user.account_number}")
@@ -181,11 +214,14 @@ class App:
         return int(amount)
 
     def deposit_screen(self, user):
-        amount = self.ask_ammount("Enter the ammount to deposit: ")
+        amount = self.ask_ammount("Enter the amount to deposit: ")
         if amount is None:
             return
-        user.deposit(amount)
-        self.bank.storage.update(user)
+        try:
+            self.bank.deposit(user, amount)
+        except ValueError as e:
+            print(e)
+            return
         print(f"{amount} deposited successfully")
 
     def transfer_screen(self,user):
@@ -195,8 +231,8 @@ class App:
             return
         try:
             self.bank.transfer(user,recipient_account ,amount)
-        except RuntimeError as v:
-            print(v)
+        except ValueError as e:
+            print(e)
             return
         print(f"Ammount Transfered successfully to {recipient_account}")
 
