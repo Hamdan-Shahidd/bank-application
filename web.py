@@ -3,9 +3,11 @@ from flask import Flask, render_template, request, redirect, flash, session
 from banking import Bank
 from storage import SqliteStorage
 from flask_wtf.csrf import CSRFProtect
+from dotenv import load_dotenv
 
+load_dotenv()
 app = Flask(__name__)
-app.secret_key = "dev-only-change-this"
+app.secret_key = os.environ["SECRET_KEY"]
 csrf = CSRFProtect(app)
 
 def current_user():

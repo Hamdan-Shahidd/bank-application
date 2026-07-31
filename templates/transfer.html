@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Transfer funds</h1>
+
+<p>Your balance: {{ user.balance }}</p>
+
+<form method="POST">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input name="account_number" placeholder="Recipient account number" required>
+  <input name="amount" placeholder="Amount" required>
+  <button type="submit">Send</button>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+
+<a href="/dashboard">Back</a>
+{% endblock %}
