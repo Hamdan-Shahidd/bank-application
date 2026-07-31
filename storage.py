@@ -6,7 +6,7 @@ from models import User
 # Below is tge SQLite storage class.(UNDERSTAND)
 class SqliteStorage:
     def __init__(self, path="bank.db"):
-        self.conn = sqlite3.connect(path)
+        self.conn = sqlite3.connect(path , check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA foreign_keys = ON")
         schema = Path(__file__).parent / "schema.sql"
