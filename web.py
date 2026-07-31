@@ -74,3 +74,24 @@ def deposit():
         return redirect("/dashboard")
 
     return render_template("deposit.html")
+
+@app.route("/transfer", methods=["GET", "POST"])
+def transfer():
+    user = current_user()
+    if user is None:
+        return redirect("/login")
+
+    if request.method == "POST":
+        raw = request.form["amount"]
+        if not raw.isdecimal() or int(raw) == 0:
+            flash("Enter a whole number greater than 0")
+            return redirect("/transfer")
+        try:
+            bank.transfer(user, request.form["account_number"], int(raw))
+        except ValueError as e:
+            flash(str(e))
+            return redirect("/transfer")
+        flash("Transfer complete")
+        return redirect("/dashboard")
+
+    return render_template("transfer.html")
