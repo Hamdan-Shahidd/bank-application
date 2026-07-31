@@ -54,3 +54,23 @@ def dashboard():
         return redirect("/login")
     return render_template("dashboard.html", user=user)
 
+@app.route("/deposit", methods=["GET", "POST"])
+def deposit():
+    user = current_user()
+    if user is None:
+        return redirect("/login")
+
+    if request.method == "POST":
+        raw = request.form["amount"]
+        if not raw.isdecimal() or int(raw) == 0:
+            flash("Enter a whole number greater than 0")
+            return redirect("/deposit")
+        try:
+            bank.deposit(user, int(raw))
+        except ValueError as e:
+            flash(str(e))
+            return redirect("/deposit")
+        flash(f"{raw} deposited")
+        return redirect("/dashboard")
+
+    return render_template("deposit.html")
