@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html>
+<head><title>My Bank</title></head>
+<body>
+  <nav><a href="/">Home</a></nav>
+  {% with messages = get_flashed_messages() %}
+    {% for m in messages %}<p class="error">{{ m }}</p>{% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</body>
+</html>
