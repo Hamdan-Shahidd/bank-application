@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS users(
+    id INTEGER PRIMARY KEY,
+    username TEXT NOT NULL,
+    gmail TEXT NOT NULL UNIQUE,
+    account_number TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL,
+    balance INTEGER NOT NULL DEFAULT 0
+);
