@@ -1,10 +1,15 @@
 import os
-from flask import Flask, render_template, request, redirect, flash
+from flask import Flask, render_template, request, redirect, flash, session
 from banking import Bank
 from storage import SqliteStorage
 
 app = Flask(__name__)
 app.secret_key = "dev-only-change-this"
+
+def current_user():
+    uid = session.get("user_id")
+    return bank.storage.find_by_id(uid) if uid else None
+
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -24,3 +29,28 @@ def signup():
         flash(f"Account created. Your account number is {user.account_number}")
         return redirect("/login")
     return render_template("signup.html")
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        try:
+            user = bank.log_in(request.form["gmail"], request.form["password"])
+        except ValueError as e:
+            flash(str(e))
+            return redirect("/login")
+        session["user_id"] = user.user_id
+        return redirect("/dashboard")
+    return render_template("login.html")
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/")
+
+@app.route("/dashboard")
+def dashboard():
+    user = current_user()
+    if user is None:
+        return redirect("/login")
+    return render_template("dashboard.html", user=user)
+
