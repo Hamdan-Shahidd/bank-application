@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 bank.db
 .env
+chroma_db/

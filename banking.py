@@ -33,6 +33,7 @@ class Bank:
         recipient.deposit(amount)
         self.storage.update(sender , recipient)
         return recipient
+    
     def deposit(self, user, amount):
         user.deposit(amount)
         self.storage.update(user)

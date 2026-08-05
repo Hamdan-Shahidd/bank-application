@@ -4,6 +4,7 @@ from banking import Bank
 from storage import SqliteStorage
 from flask_wtf.csrf import CSRFProtect
 from dotenv import load_dotenv
+from agent import interpret
 
 load_dotenv()
 app = Flask(__name__)
@@ -98,3 +99,21 @@ def transfer():
         flash("Transfer complete")
         return redirect("/dashboard")
     return render_template("transfer.html")
+
+
+
+
+# For Agents: 
+@app.route("/assistant" , methods = ["GET" , "POST"])
+def assistant():
+    user = current_user()
+    if user is None:
+        return redirect("/login")
+    if request.method == "POST":
+        kind, payload = interpret(request.form["message"])
+        if kind == "proposal":
+            session["pending"] = payload
+            return render_template("assistant.html" , proposal = payload)
+        return render_template("assistant.html" , reply = payload)
+    return render_template("assistant.html")
+    

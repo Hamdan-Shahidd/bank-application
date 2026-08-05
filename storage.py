@@ -1,18 +1,31 @@
 import sqlite3
 import random
+import threading
 from pathlib import Path
 from models import User
 
 # Below is tge SQLite storage class.(UNDERSTAND)
 class SqliteStorage:
     def __init__(self, path="bank.db"):
-        self.conn = sqlite3.connect(path , check_same_thread=False)
-        self.conn.row_factory = sqlite3.Row
-        self.conn.execute("PRAGMA foreign_keys = ON")
+        self.path = path
+        self._local = threading.local()
+        conn = self._connect()
         schema = Path(__file__).parent / "schema.sql"
         with open(schema) as f:
-            self.conn.executescript(f.read())
+            conn.executescript(f.read())
 
+    def _connect(self):
+        conn = sqlite3.connect(self.path)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        return conn
+
+    @property
+    def conn(self):
+        if not hasattr(self._local, "conn"):
+            self._local.conn = self._connect()
+        return self._local.conn
+    
     def load_all(self):
         # fetchall() pulls every row into  the list and then each row is rebuld into a USER object
         rows = self.conn.execute("SELECT * FROM users").fetchall()
