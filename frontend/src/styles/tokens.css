@@ -1,0 +1,24 @@
+:root {
+  --paper: #EDF0EA;
+  --paper-line: #C7D0BE;
+  --paper-raised: #F6F8F3;
+
+  --ink: #1C2B24;
+  --ink-soft: #56685D;
+  --ink-faint: #8B9A8E;
+
+  --stamp: #1F5C4C;
+  --stamp-dark: #163F34;
+  --stamp-tint: rgba(31, 92, 76, 0.08);
+
+  --alert: #8C3B2E;
+  --alert-tint: rgba(140, 59, 46, 0.08);
+
+  --gold: #93731F;
+
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+
+  --radius: 3px;
+}

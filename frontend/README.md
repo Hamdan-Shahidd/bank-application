@@ -1,16 +1,16 @@
-# React + Vite
+frontend: What the human actually sees.
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+- src: 
+    - api.js: The messenger. Everytime the react app needs to talk to the backend, it goes thorugh here. It knows the ackend adress and ataches JWT Token to every request so you don't have to do it yourself. 
 
-Currently, two official plugins are available:
+    - main.jsx: The map. It decides "if the browser shows /login diplay the login page. If the browser shows /dashboard show the dashboard page". 
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+    - pages: Contain one file per screen. Each is a small program that waits for you to click something and then calls api.js to do something. The .jsx files in it are also called components. 
 
-## React Compiler
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-## Expanding the ESLint configuration
+QUESTIONS: 
+When applying styling through CSS will it be done in jsx files in pages? 
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+JSX: One way of writing the HTML like code directly into javascript. This code is converted to javasvript before runing. 
+Vite: The tool that runs your react app during development and eventually bundles it into real files the browser can load. It is fast because it don't rebuild the whole app every time you save, it only rebuilds the piece that changed. 

@@ -8,6 +8,7 @@ from core.storage import SqliteStorage
 
 app = FastAPI(title="Banking API", version="1.0.0")
 
+# CORS: Cross Origin Resource Sharing
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],

@@ -21,27 +21,43 @@ export default function Login() {
     }
 
     return (
-        <div>
-            <h1>Log in</h1>
-            {error && <p style={{color: 'red'}}>{error}</p>}
-            <form onSubmit={handleSubmit}>
-                <input
-                    type="email"
-                    placeholder="Email"
-                    value={gmail}
-                    onChange={e => setGmail(e.target.value)}
-                    required
-                />
-                <input
-                    type="password"
-                    placeholder="Password"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    required
-                />
-                <button type="submit">Log in</button>
-            </form>
-            <p>No account? <Link to="/signup">Sign up</Link></p>
+        <div className="ledger-page">
+            <div className="ledger-card">
+                <p className="ledger-wordmark">Ledger</p>
+                <h1 className="ledger-title">Log in</h1>
+
+                {error && <div className="ledger-error">{error}</div>}
+
+                <form onSubmit={handleSubmit}>
+                    <div className="ledger-field">
+                        <label htmlFor="gmail">Email</label>
+                        <input
+                            id="gmail"
+                            type="email"
+                            value={gmail}
+                            onChange={e => setGmail(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <div className="ledger-field">
+                        <label htmlFor="password">Password</label>
+                        <input
+                            id="password"
+                            type="password"
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <button type="submit" className="ledger-button ledger-button--full">
+                        Open the ledger
+                    </button>
+                </form>
+
+                <p className="ledger-footer-text">
+                    No account? <Link className="ledger-link" to="/signup">Start one</Link>
+                </p>
+            </div>
         </div>
     )
 }

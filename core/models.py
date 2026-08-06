@@ -31,6 +31,7 @@ class User:
             raise ValueError("Ammount greater than available balance.")
         self.balance-=ammount
 
+    # Property is a decorator that let's you access a method like a attribute. 
     @property
     def balance_display(self):
         """Balance formatted as PKR 10.00"""

@@ -1,0 +1,316 @@
+@import './tokens.css';
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: var(--paper);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 31px,
+    var(--paper-line) 31px,
+    var(--paper-line) 32px
+  );
+  color: var(--ink);
+  font-family: var(--font-body);
+  line-height: 1.5;
+}
+
+:focus-visible {
+  outline: 2px solid var(--stamp);
+  outline-offset: 2px;
+}
+
+/* ---------- Page shell ---------- */
+
+.ledger-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+.ledger-card {
+  background: var(--paper-raised);
+  border: 1px solid var(--paper-line);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 0 var(--paper-line), 0 8px 24px rgba(28, 43, 36, 0.06);
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 420px;
+}
+
+.ledger-card--wide {
+  max-width: 640px;
+}
+
+/* ---------- Typography ---------- */
+
+.ledger-wordmark {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin: 0 0 0.25rem;
+}
+
+.ledger-title {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 600;
+  margin: 0 0 1.5rem;
+}
+
+.ledger-subtitle {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  margin: -1rem 0 1.5rem;
+}
+
+/* ---------- Form fields ---------- */
+
+.ledger-field {
+  margin-bottom: 1.4rem;
+}
+
+.ledger-field label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  margin-bottom: 0.4rem;
+}
+
+.ledger-field input {
+  width: 100%;
+  border: none;
+  border-bottom: 1.5px solid var(--paper-line);
+  background: transparent;
+  padding: 0.5rem 0.1rem;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--ink);
+  transition: border-color 0.15s ease;
+}
+
+.ledger-field input:focus {
+  border-bottom-color: var(--stamp);
+}
+
+.ledger-field input[type="number"] {
+  font-family: var(--font-mono);
+}
+
+/* ---------- Buttons ---------- */
+
+.ledger-button {
+  display: inline-block;
+  background: var(--stamp);
+  color: var(--paper-raised);
+  border: none;
+  border-radius: var(--radius);
+  padding: 0.65rem 1.4rem;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.ledger-button:hover {
+  background: var(--stamp-dark);
+}
+
+.ledger-button--full {
+  width: 100%;
+  text-align: center;
+}
+
+.ledger-button--ghost {
+  background: transparent;
+  color: var(--stamp);
+  border: 1.5px solid var(--stamp);
+}
+
+.ledger-button--ghost:hover {
+  background: var(--stamp-tint);
+}
+
+/* ---------- Links, messages ---------- */
+
+.ledger-link {
+  color: var(--stamp);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.ledger-link:hover {
+  border-bottom-color: var(--stamp);
+}
+
+.ledger-footer-text {
+  margin-top: 1.5rem;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.ledger-error {
+  background: var(--alert-tint);
+  color: var(--alert);
+  border-left: 3px solid var(--alert);
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+  margin-bottom: 1.2rem;
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.ledger-success {
+  background: var(--stamp-tint);
+  color: var(--stamp-dark);
+  border-left: 3px solid var(--stamp);
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+  margin-bottom: 1.2rem;
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+/* ---------- Dashboard-specific ---------- */
+
+.ledger-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1.5px solid var(--paper-line);
+}
+
+.ledger-account-no {
+  font-family: var(--font-mono);
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+}
+
+.ledger-balance-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  margin-bottom: 0.2rem;
+}
+
+.ledger-balance {
+  font-family: var(--font-mono);
+  font-size: 2.4rem;
+  font-weight: 500;
+  color: var(--gold);
+  margin: 0 0 1.5rem;
+}
+
+.ledger-nav {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem;
+  border-top: 1.5px solid var(--paper-line);
+}
+
+.ledger-nav li {
+  border-bottom: 1px solid var(--paper-line);
+}
+
+.ledger-nav a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 0.1rem;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.ledger-nav a:hover {
+  color: var(--stamp);
+}
+
+.ledger-nav a::after {
+  content: '→';
+  color: var(--ink-faint);
+}
+
+.ledger-history-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--paper-line);
+  font-size: 0.85rem;
+}
+
+.ledger-history-amount {
+  font-family: var(--font-mono);
+}
+
+.ledger-history-amount--in {
+  color: var(--stamp-dark);
+}
+
+.ledger-history-amount--out {
+  color: var(--alert);
+}
+
+/* ---------- The signature moment: the stamp ---------- */
+
+.stamp-badge {
+  display: inline-block;
+  border: 3px solid var(--stamp);
+  border-radius: 50%;
+  padding: 1.4rem 1.9rem;
+  color: var(--stamp);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  transform: rotate(-7deg);
+  position: relative;
+  margin: 1rem auto;
+}
+
+.stamp-badge::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border: 1px solid var(--stamp);
+  border-radius: 50%;
+  opacity: 0.5;
+}
+
+.stamp-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .stamp-badge {
+    animation: stamp-in 0.3s ease-out;
+  }
+}
+
+@keyframes stamp-in {
+  from { transform: rotate(-7deg) scale(1.4); opacity: 0; }
+  to   { transform: rotate(-7deg) scale(1);   opacity: 1; }
+}
+
+@media (max-width: 480px) {
+  .ledger-card { padding: 1.75rem; }
+  .ledger-balance { font-size: 1.9rem; }
+}

@@ -48,3 +48,6 @@ export const confirmTransfer = (recipient_account, amount) =>
 
 export const withdraw = (amount) =>
     api.post('/withdraw', { amount })
+
+export const getHistory = () => 
+    api.get('/history')
