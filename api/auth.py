@@ -1,12 +1,8 @@
 import os
-import sys
-from pathlib import Path
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 SECRET_KEY = os.environ["SECRET_KEY"]
 ALGORITHM = "HS256"

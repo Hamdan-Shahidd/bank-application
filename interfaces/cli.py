@@ -1,5 +1,12 @@
-from banking import Bank
-from storage import SqliteStorage
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from core.models import User, hash_password
+from core.storage import SqliteStorage
+from core.banking import Bank
+
 class App:
     def __init__(self , bank):
         self.bank = bank

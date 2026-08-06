@@ -1,10 +1,15 @@
 import os
 from flask import Flask, render_template, request, redirect, flash, session
-from banking import Bank
-from storage import SqliteStorage
 from flask_wtf.csrf import CSRFProtect
 from dotenv import load_dotenv
-from agent import interpret
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from core.banking import Bank
+from core.storage import SqliteStorage
+from ai.agent import interpret
 
 load_dotenv()
 app = Flask(__name__)

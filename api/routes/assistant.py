@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from api.schemas import AssistantRequest, ConfirmRequest, AssistantResponse, MessageResponse
 from api.auth import current_user
 from api.main import bank
-from agent import interpret
+from ai.agent import interpret
 
 router = APIRouter()
 

@@ -1,8 +1,13 @@
 # Phase 07 remaining.
+import sys
 import streamlit as st
-from banking import Bank
-from storage import SqliteStorage
-from agent import interpret
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from core.banking import Bank
+from core.storage import SqliteStorage
+from ai.agent import interpret
 
 st.set_page_config(page_title="Bank", page_icon="🏦")
 
