@@ -23,18 +23,29 @@ class Bank:
             raise ValueError("Invalid Credentials")
         return user
 
-    def transfer(self , sender , recipient_account , amount):
+    def deposit(self, user, amount_in_units):
+        amount_cents = amount_in_units * 100
+        user.deposit(amount_cents)
+        self.storage.record_deposit(user, amount_cents)
+        return user
+
+    def withdraw(self, user, amount_in_units):
+        amount_cents = amount_in_units * 100
+        user.widraw(amount_cents)
+        self.storage.record_withdrawal(user, amount_cents)
+        return user
+
+    def transfer(self, sender, recipient_account, amount_in_units):
+        amount_cents = amount_in_units * 100
         recipient = self.find_by_account(recipient_account)
         if recipient is None:
-            raise ValueError("Mo user with this credentials")
+            raise ValueError("No user with this account number")
         if recipient.user_id == sender.user_id:
-            raise ValueError("Can't send ammount to yourself")
-        sender.widraw(amount)
-        recipient.deposit(amount)
-        self.storage.update(sender , recipient)
+            raise ValueError("Can't send amount to yourself")
+        sender.widraw(amount_cents)
+        recipient.deposit(amount_cents)
+        self.storage.record_transfer(sender, recipient, amount_cents)
         return recipient
-    
-    def deposit(self, user, amount):
-        user.deposit(amount)
-        self.storage.update(user)
-        return user
+
+    def get_history(self, user):
+        return self.storage.history_for(user.user_id)

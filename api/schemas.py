@@ -55,3 +55,24 @@ class AssistantResponse(BaseModel):
     text: Optional[str] = None
     proposal: Optional[dict] = None
     details: Optional[dict] = None
+
+class UserResponse(BaseModel):
+    user_id: int
+    username: str
+    gmail: str
+    account_number: str
+    balance: int
+    balance_display: str
+
+    @classmethod
+    def from_user(cls, user):
+        return cls(
+            user_id=user.user_id,
+            username=user.username,
+            gmail=user.gmail,
+            account_number=user.account_number,
+            balance=user.balance,
+            balance_display=f"PKR {user.balance / 100:.2f}"
+        )
+class WithdrawRequest(BaseModel):
+    amount: int

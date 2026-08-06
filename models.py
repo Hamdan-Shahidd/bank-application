@@ -30,3 +30,8 @@ class User:
         if ammount > self.balance:
             raise ValueError("Ammount greater than available balance.")
         self.balance-=ammount
+
+    @property
+    def balance_display(self):
+        """Balance formatted as PKR 10.00"""
+        return f"PKR {self.balance / 100:.2f}"

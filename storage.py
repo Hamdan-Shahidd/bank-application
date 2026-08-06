@@ -91,3 +91,54 @@ class SqliteStorage:
         row = self.conn.execute(
             "SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
         return self._to_user(row) if row else None
+
+    def record_deposit(self, user, amount):
+        with self.conn:
+            self.conn.execute(
+                "UPDATE users SET balance = ? WHERE id = ?",
+                (user.balance, user.user_id)
+            )
+            self.conn.execute(
+                "INSERT INTO transactions (sender_id, recipient_id, amount, kind)"
+                " VALUES (NULL, ?, ?, 'deposit')",
+                (user.user_id, amount)
+            )
+
+    def record_withdrawal(self, user, amount):
+        with self.conn:
+            self.conn.execute(
+                "UPDATE users SET balance = ? WHERE id = ?",
+                (user.balance, user.user_id)
+            )
+            self.conn.execute(
+                "INSERT INTO transactions (sender_id, recipient_id, amount, kind)"
+                " VALUES (?, NULL, ?, 'withdrawal')",
+                (user.user_id, amount)
+            )
+
+    def record_transfer(self, sender, recipient, amount):
+        with self.conn:
+            self.conn.execute(
+                "UPDATE users SET balance = ? WHERE id = ?",
+                (sender.balance, sender.user_id)
+            )
+            self.conn.execute(
+                "UPDATE users SET balance = ? WHERE id = ?",
+                (recipient.balance, recipient.user_id)
+            )
+            self.conn.execute(
+                "INSERT INTO transactions (sender_id, recipient_id, amount, kind)"
+                " VALUES (?, ?, ?, 'transfer')",
+                (sender.user_id, recipient.user_id, amount)
+            )
+
+    def history_for(self, user_id, limit=20):
+        rows = self.conn.execute(
+            "SELECT * FROM transactions"
+            " WHERE sender_id = ? OR recipient_id = ?"
+            " ORDER BY created_at DESC LIMIT ?",
+            (user_id, user_id, limit)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    
