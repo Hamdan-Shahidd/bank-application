@@ -45,3 +45,6 @@ export const sendMessage = (message) =>
 
 export const confirmTransfer = (recipient_account, amount) =>
     api.post('/assistant/confirm', { recipient_account, amount })
+
+export const withdraw = (amount) =>
+    api.post('/withdraw', { amount })

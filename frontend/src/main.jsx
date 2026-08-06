@@ -7,6 +7,8 @@ import Dashboard from './pages/Dashboard'
 import Deposit from './pages/Deposit'
 import Transfer from './pages/Transfer'
 import Assistant from './pages/Assistant'
+import Withdraw from './pages/Withdraw'
+
 
 function PrivateRoute({ children }) {
     const token = localStorage.getItem('token')
@@ -26,6 +28,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             } />
             <Route path="/transfer" element={
                 <PrivateRoute><Transfer /></PrivateRoute>
+            } />
+            <Route path="/withdraw" element={
+                <PrivateRoute><Withdraw /></PrivateRoute>
             } />
             <Route path="/assistant" element={
                 <PrivateRoute><Assistant /></PrivateRoute>

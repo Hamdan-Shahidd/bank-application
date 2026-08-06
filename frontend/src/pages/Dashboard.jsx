@@ -24,11 +24,12 @@ export default function Dashboard() {
         <div>
             <h1>Hello, {user.username}</h1>
             <p>Account: {user.account_number}</p>
-            <p>Balance: {user.balance}</p>
+            <p>Balance: {user.balance_display}</p>
             {error && <p style={{color: 'red'}}>{error}</p>}
             <nav>
                 <Link to="/deposit">Deposit</Link>
                 <Link to="/transfer">Transfer</Link>
+                <Link to="/withdraw">Withdraw</Link>
                 <Link to="/assistant">Assistant</Link>
             </nav>
             <button onClick={logout}>Log out</button>
