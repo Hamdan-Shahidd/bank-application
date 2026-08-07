@@ -49,3 +49,7 @@ class Bank:
 
     def get_history(self, user):
         return self.storage.history_for(user.user_id)
+
+    def query_transactions(self , user , condition):
+        return self.storage.query_transactions_filtered(user.user_id , condition)
+    

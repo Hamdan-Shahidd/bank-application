@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from api.schemas import AssistantRequest, ConfirmRequest, AssistantResponse, MessageResponse
 from api.auth import current_user
 from api.main import bank
-from ai.agent import interpret
+from ai.agent import interpret , summarize_results
 
 router = APIRouter()
 
@@ -21,7 +21,16 @@ def assistant(body: AssistantRequest, user=Depends(current_user)):
             "balance": user.balance,
         }
         return AssistantResponse(kind="account_details", details=details)
-
+    # For SQL Agent
+    elif kind == "query_transactions":
+        condition = payload.get("condition", "")
+        try:
+            rows = bank.query_transactions(user, condition)
+            answer = summarize_results(body.message, rows)
+            return AssistantResponse(kind="text", text=answer)
+        except ValueError:
+            return AssistantResponse(kind="text", text="I can't run that kind of question.")
+    
     return AssistantResponse(kind="text", text=payload)
 
 

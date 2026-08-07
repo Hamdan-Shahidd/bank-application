@@ -23,8 +23,21 @@ def get_account_details() -> str:
     """Get the current user's account details including account number and balance."""
     return "fetched"
 
+@tool
+def query_transactions(condition : str) -> str:
+    """
+    Query the user's own transaction history using a SQL-WHERE clause fragment.
+    Only these column names are allowed: amount , kind , created_at , sender_id , recipient_id
+    kind must be one of: 'deposit' , 'withdrawal' , 'transfer'.
+    amount is stored in cents (multiply rupee amounts by 100).
+    Do not write SELECT, table names, or any user filter — those are handled automatically.
+    Example for "deposits over 500 last month":
+    "kind = 'deposit' AND amount > 50000 AND created_at >= date('now', '-30 days')"
+    """
+    return "queried"
 
-llm_with_tools = llm.bind_tools([propose_transfer, get_account_details])
+
+llm_with_tools = llm.bind_tools([propose_transfer , get_account_details , query_transactions ])
 
 system = (
     "You are a banking assistant for HBL. "
@@ -38,7 +51,7 @@ system = (
     "'I can only help with banking questions.'"
 )
 
-
+# For terms RAG
 def interpret(message):
     """Returns (tool_name, args) or ('text', '...')"""
     policy_context = retrieve_policy(message)
@@ -71,3 +84,28 @@ def interpret(message):
         text = content
 
     return "text", text
+
+# For SQL Agent: Turn raw rows coming from tables into sentences. 
+def summarize_results(question, rows):
+    if not rows:
+        return "No matching transactions found."
+
+    rows_text = "\n".join(
+        f"{r['created_at']}: {r['kind']} of PKR {r['amount']/100:.2f}"
+        for r in rows
+    )
+
+    result = llm.invoke([
+        ("system", "Summarize these transaction records to answer the user's "
+                   "question in one or two plain sentences. Don't list every "
+                   "row individually unless there are 3 or fewer."),
+        ("human", f"Question: {question}\n\nRecords:\n{rows_text}"),
+    ])
+
+    content = result.content
+    if isinstance(content, list):
+        return " ".join(
+            b["text"] for b in content
+            if isinstance(b, dict) and b.get("type") == "text"
+        )
+    return content
