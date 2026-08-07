@@ -314,3 +314,67 @@ body {
   .ledger-card { padding: 1.75rem; }
   .ledger-balance { font-size: 1.9rem; }
 }
+
+/* ---------- Chat / Assistant ---------- */
+
+.ledger-chat {
+  max-height: 55vh;
+  overflow-y: auto;
+  margin-bottom: 1.5rem;
+  padding-right: 0.25rem;
+}
+
+.chat-entry {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--paper-line);
+}
+
+.chat-entry:last-child {
+  border-bottom: none;
+}
+
+.chat-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  margin-bottom: 0.3rem;
+}
+
+.chat-entry--user .chat-text {
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.chat-entry--assistant .chat-text {
+  color: var(--ink);
+}
+
+.chat-proposal {
+  background: var(--stamp-tint);
+  border-left: 3px solid var(--stamp);
+  padding: 0.6rem 0.9rem;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.chat-proposal-actions {
+  margin-top: 0.6rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.chat-stamp-inline {
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 0;
+  transform: scale(0.7);
+}
+
+.ledger-chat-empty {
+  color: var(--ink-faint);
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 1rem 0;
+}

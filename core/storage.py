@@ -21,30 +21,31 @@ FORBIDDEN = re.compile(
     re.IGNORECASE,
 )
 
-def _validate_condition(fragment : str) -> bool:
+def _validate_condition(fragment: str) -> bool:
     """
-        Returns true only if the fragment is safe to embed in the where clause.
+    Returns True only if the fragment is safe to embed in the WHERE clause.
     """
     if not fragment or ";" in fragment:
         return False
-    
-    if "(" in fragment or ")" in fragment:
+
+    stripped = re.sub(r"date\s*\([^()]*\)", "", fragment, flags=re.IGNORECASE)
+
+    if "(" in stripped or ")" in stripped:
         return False
-    
+
     if FORBIDDEN.search(fragment):
         return False
-    
+
     tokens = re.findall(r"[A-Za-z_][A-Za-z0-9_]*", fragment)
     for tok in tokens:
         if tok.upper() in SAFE_KEYWORDS:
             continue
         if tok in ALLOWED_COLUMNS:
             continue
-        if tok in {"deposit" , "withdrawal" , "transfer"}:
+        if tok in {"deposit", "withdrawal", "transfer"}:
             continue
         return False
     return True
-
 
 
 class SqliteStorage:
