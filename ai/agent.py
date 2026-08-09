@@ -42,20 +42,23 @@ llm_with_tools = llm.bind_tools([propose_transfer , get_account_details , query_
 
 system = (
     "You are a banking assistant for HBL. "
+    "Respond naturally to greetings and small talk. "
     "If the user wants to send money, call propose_transfer. "
     "If the user asks for their account details, account number, or balance, call get_account_details. "
-    "Answer ONLY from the HBL Terms and Conditions provided below. "
-    "If the answer is not explicitly stated in the context, respond: "
+    "If the user asks about their transaction history, spending, or deposits, call query_transactions. "
+    "Answer policy questions ONLY from the HBL Terms and Conditions provided below. "
+    "If a policy answer isn't explicitly stated in the context, respond: "
     "'I don't have that information in the HBL terms.' "
     "Never say a transfer is complete — it requires confirmation. "
-    "For anything unrelated to banking, say: "
+    "For requests clearly unrelated to banking (general knowledge, coding, other topics), say: "
     "'I can only help with banking questions.'"
 )
 
 # For terms RAG
 def interpret(message):
     """Returns (tool_name, args) or ('text', '...')"""
-    policy_context = retrieve_policy(message)
+    # Skip retrival for short messages such as greetings.
+    policy_context = retrieve_policy(message) if len(message.strip()) > 10 else ""
 
     full_system = system
     if policy_context:
