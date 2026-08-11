@@ -24,7 +24,7 @@ bank = Bank(SqliteStorage())
 def root():
     return {"message": "running"}
 
-
+# Registers every endpoint.
 from api.routes import account, assistant
 app.include_router(account.router)
 app.include_router(assistant.router)

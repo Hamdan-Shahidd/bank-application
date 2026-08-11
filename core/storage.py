@@ -3,6 +3,7 @@ import sqlite3
 import threading
 from pathlib import Path
 from core.models import User
+from logging_config import logger
 import re
 
 """
@@ -26,14 +27,17 @@ def _validate_condition(fragment: str) -> bool:
     Returns True only if the fragment is safe to embed in the WHERE clause.
     """
     if not fragment or ";" in fragment:
+        logger.warning(f"SQL VALIDATOR REJECTED | reason=semicolon or empty | fragment={fragment!r}")
         return False
 
     stripped = re.sub(r"date\s*\([^()]*\)", "", fragment, flags=re.IGNORECASE)
 
     if "(" in stripped or ")" in stripped:
+        logger.warning(f"SQL VALIDATOR REJECTED | reason=stray paarantheses | fragment={fragment!r}")
         return False
 
     if FORBIDDEN.search(fragment):
+        logger.warning(f"SQL VALIDATOR REJECTED | reason=forbidden keyword | fragment={fragment!r}")
         return False
 
     tokens = re.findall(r"[A-Za-z_][A-Za-z0-9_]*", fragment)
@@ -44,6 +48,7 @@ def _validate_condition(fragment: str) -> bool:
             continue
         if tok in {"deposit", "withdrawal", "transfer"}:
             continue
+        logger.warning(f"SQL VALIDATOR REJECTED | reason=unrecognized token '{tok}' | fragment={fragment!r}")
         return False
     return True
 
@@ -172,6 +177,8 @@ class SqliteStorage:
             condition = "1=1"
         if not _validate_condition(condition):
             raise ValueError("This filter is not allowed")
+
+        logger.info(f"SQL QUERY ACCEPTED | user_id={user_id} | condition={condition!r}")
         sql = f"""
             SELECT amount , kind , created_at , sender_id , recipient_id
             FROM transactions

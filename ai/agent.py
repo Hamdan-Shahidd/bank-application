@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from langchain_core.tools import tool
 from langchain_google_genai import ChatGoogleGenerativeAI
 from ai.retriever import retrieve_policy
+from logging_config import logger
 
 load_dotenv()
 
@@ -25,6 +26,19 @@ def get_account_details() -> str:
     return "fetched"
 
 @tool
+def propose_deposit(amount: int) -> str:
+    """Propose depositing money into the user's own account. 
+    Amount must be in whole currency units as stated by the user (e.g. rupees), never in cents. Do not multiply or convert the amount. Does not execute the deposit."""
+    return "proposed"
+
+@tool
+def propose_withdrawal(amount: int) -> str:
+    """Propose withdrawing money from the user's own account. 
+    Amount must be in whole currency units as stated by the user (e.g. rupees), never in cents. Do not multiply or convert the amount. Does not execute the withdrawal."""
+    return "proposed"
+
+
+@tool
 def query_transactions(condition : str) -> str:
     """
     Query the user's own transaction history using a SQL-WHERE clause fragment.
@@ -38,7 +52,13 @@ def query_transactions(condition : str) -> str:
     return "queried"
 
 
-llm_with_tools = llm.bind_tools([propose_transfer , get_account_details , query_transactions ])
+llm_with_tools = llm.bind_tools([
+    propose_transfer , 
+    get_account_details , 
+    query_transactions , 
+    propose_deposit , 
+    propose_withdrawal
+    ])
 
 system = (
     "You are a banking assistant for HBL. "
@@ -52,6 +72,9 @@ system = (
     "Never say a transfer is complete — it requires confirmation. "
     "For requests clearly unrelated to banking (general knowledge, coding, other topics), say: "
     "'I can only help with banking questions.'"
+    "If the user wants to send money, call propose_transfer. "
+    "If the user wants to deposit money, call propose_deposit. "
+    "If the user wants to withdraw money, call propose_withdrawal. "
 )
 
 # For terms RAG
@@ -87,6 +110,7 @@ def interpret(message):
     else:
         text = content
 
+    logger.info(f"AI TEXT RESPONSE | message_length={len(message)}")
     return "text", text
 
 # For SQL Agent: Turn raw rows coming from tables into sentences. 

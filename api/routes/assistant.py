@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from api.schemas import AssistantRequest, ConfirmRequest, AssistantResponse, MessageResponse
+from api.schemas import AssistantRequest, ConfirmRequest, AssistantResponse, MessageResponse , DepositConfirmRequest , WithdrawConfirmRequest
 from api.auth import current_user
 from api.main import bank
 from ai.agent import interpret , summarize_results
@@ -21,6 +21,13 @@ def assistant(body: AssistantRequest, user=Depends(current_user)):
             "balance": user.balance,
         }
         return AssistantResponse(kind="account_details", details=details)
+
+    elif kind == "propose_deposit":
+        return AssistantResponse(kind="proposal_deposit", proposal=payload)
+
+    elif kind == "propose_withdrawal":
+        return AssistantResponse(kind="proposal_withdrawal", proposal=payload)
+    
     # For SQL Agent
     elif kind == "query_transactions":
         condition = payload.get("condition", "")
@@ -39,5 +46,23 @@ def assistant_confirm(body: ConfirmRequest, user=Depends(current_user)):
     try:
         bank.transfer(user, body.recipient_account, body.amount)
         return MessageResponse(message="Transfer complete")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/assistant/confirm_deposit", response_model=MessageResponse)
+def assistant_confirm_deposit(body: DepositConfirmRequest, user=Depends(current_user)):
+    try:
+        bank.deposit(user, body.amount)
+        return MessageResponse(message="Deposit complete")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/assistant/confirm_withdraw", response_model=MessageResponse)
+def assistant_confirm_withdraw(body: WithdrawConfirmRequest, user=Depends(current_user)):
+    try:
+        bank.withdraw(user, body.amount)
+        return MessageResponse(message="Withdrawal complete")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

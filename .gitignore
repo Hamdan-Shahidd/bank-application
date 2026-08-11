@@ -4,3 +4,4 @@ __pycache__/
 bank.db
 .env
 chroma_db/
+logs/

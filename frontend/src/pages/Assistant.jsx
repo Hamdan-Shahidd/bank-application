@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { sendMessage, confirmTransfer } from '../api'
+import { sendMessage, confirmTransfer, confirmDeposit, confirmWithdraw } from '../api'
 import AppShell from '../components/AppShell'
 import { Send, Bot } from 'lucide-react'
 
@@ -45,6 +45,36 @@ export default function Assistant() {
             setSending(false)
         }
     }
+    async function handleConfirm(msgId, proposal) {
+        try {
+            await confirmTransfer(proposal.recipient_account, proposal.amount)
+            setMessages(prev => prev.map(m => m.id === msgId ? { ...m, confirmed: true } : m))
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Transfer failed')
+        }
+    }
+
+    async function handleConfirmDeposit(msgId, proposal) {
+        try {
+            await confirmDeposit(proposal.amount)
+            setMessages(prev => prev.map(m => m.id === msgId ? { ...m, confirmed: true } : m))
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Deposit failed')
+        }
+    }
+
+    async function handleConfirmWithdraw(msgId, proposal) {
+        try {
+            await confirmWithdraw(proposal.amount)
+            setMessages(prev => prev.map(m => m.id === msgId ? { ...m, confirmed: true } : m))
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Withdrawal failed')
+        }
+    }
+
+function handleCancel(msgId) {
+    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, cancelled: true } : m))
+}
 
     function autoResize(e) {
         const el = e.target
@@ -135,6 +165,43 @@ export default function Assistant() {
                                         </div>
                                     </div>
                                 )}
+                                {msg.role === 'assistant' && msg.kind === 'proposal' && msg.proposal && !msg.confirmed && !msg.cancelled && (
+                                    <div className="chat-proposal">
+                                        <div className="chat-proposal-title">Review Transfer</div>
+                                        Send PKR {msg.proposal.amount} to account {msg.proposal.recipient_account}?
+                                        <div className="chat-proposal-actions">
+                                            <button className="btn btn-primary" onClick={() => handleConfirm(msg.id, msg.proposal)}>Confirm</button>
+                                            <button className="btn btn-secondary" onClick={() => handleCancel(msg.id)}>Cancel</button>
+                                        </div>
+                                    </div>
+                                )}
+
+
+                                {msg.role === 'assistant' && msg.kind === 'proposal_deposit' && msg.proposal && !msg.confirmed && !msg.cancelled && (
+                                    <div className="chat-proposal">
+                                        <div className="chat-proposal-title">Review Deposit</div>
+                                        Deposit PKR {msg.proposal.amount}?
+                                        <div className="chat-proposal-actions">
+                                            <button className="btn btn-primary" onClick={() => handleConfirmDeposit(msg.id, msg.proposal)}>Confirm</button>
+                                            <button className="btn btn-secondary" onClick={() => handleCancel(msg.id)}>Cancel</button>
+                                        </div>
+                                    </div>
+                                )}
+
+{msg.role === 'assistant' && msg.kind === 'proposal_withdrawal' && msg.proposal && !msg.confirmed && !msg.cancelled && (
+    <div className="chat-proposal">
+        <div className="chat-proposal-title">Review Withdrawal</div>
+        Withdraw PKR {msg.proposal.amount}?
+        <div className="chat-proposal-actions">
+            <button className="btn btn-primary" onClick={() => handleConfirmWithdraw(msg.id, msg.proposal)}>Confirm</button>
+            <button className="btn btn-secondary" onClick={() => handleCancel(msg.id)}>Cancel</button>
+        </div>
+    </div>
+)}
+
+
+
+
 
                                 {msg.confirmed && (
                                     <svg className="success-check" style={{ width: 30, height: 30, margin: '0.4rem 0 0' }} viewBox="0 0 52 52">

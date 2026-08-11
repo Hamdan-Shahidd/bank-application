@@ -25,9 +25,10 @@ class User:
         self.balance+=ammount
 
     def widraw(self , ammount):
+        LIMIT = 200000
         if ammount<=0:
             raise ValueError("Ammount must be greater than 0.")
-        if ammount > self.balance:
+        if ammount > self.balance + LIMIT:
             raise ValueError("Ammount greater than available balance.")
         self.balance-=ammount
 

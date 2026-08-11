@@ -51,3 +51,9 @@ export const withdraw = (amount) =>
 
 export const getHistory = () => 
     api.get('/history')
+
+export const confirmDeposit = (amount) =>
+    api.post('/assistant/confirm_deposit', { amount })
+
+export const confirmWithdraw = (amount) =>
+    api.post('/assistant/confirm_withdraw', { amount })

@@ -76,3 +76,9 @@ class UserResponse(BaseModel):
         )
 class WithdrawRequest(BaseModel):
     amount: int
+
+class DepositConfirmRequest(BaseModel):
+    amount: int
+
+class WithdrawConfirmRequest(BaseModel):
+    amount: int
