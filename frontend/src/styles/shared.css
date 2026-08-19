@@ -547,6 +547,8 @@ a { color: inherit; }
   font-weight: 600;
 }
 
+
+
 /* ---------- Two-column dashboard grid ---------- */
 
 .dash-grid {
@@ -668,6 +670,7 @@ a { color: inherit; }
   border-radius: var(--radius-md);
   font-size: 0.9rem;
   line-height: 1.5;
+  white-space: pre-wrap;
 }
 .chat-row--assistant .chat-bubble-text { background: var(--gray-50); color: var(--text-primary); }
 .chat-row--user .chat-bubble-text { background: var(--gray-900); color: white; }

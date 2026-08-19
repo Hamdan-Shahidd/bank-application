@@ -5,3 +5,6 @@ bank.db
 .env
 chroma_db/
 logs/
+chroma_db_clauses/
+chroma_db_people/
+test_output.png

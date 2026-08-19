@@ -1,0 +1,2 @@
+from ai.retriever import build_people_knowledge_base
+build_people_knowledge_base()

@@ -18,7 +18,7 @@ class Bank:
         user = User(username, gmail, None, hash_password(password))
         created = self.storage.create(user)
         logger.info(f"SIGNUP | user_id={created.user_id} | username={username}")
-        return self.storage.create(user)
+        return created
 
     def log_in(self, gmail, password):
         user = self.find(gmail)

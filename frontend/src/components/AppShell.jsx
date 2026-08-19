@@ -8,7 +8,10 @@ import {
     Bot,
     LogOut,
     Landmark,
+    Bitcoin,
+    Cloud,
 } from 'lucide-react'
+
 import { getMe } from '../api'
 
 export default function AppShell({ children }) {
@@ -49,6 +52,14 @@ export default function AppShell({ children }) {
                     </NavLink>
                     <NavLink to="/assistant" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
                         <Bot size={18} /> AI Assistant
+                    </NavLink>
+                    
+                    <NavLink to="/crypto" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                        <Bitcoin size={18} /> Crypto
+                    </NavLink>
+
+                    <NavLink to="/weather" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                        <Cloud size={18} /> Weather
                     </NavLink>
                 </nav>
 

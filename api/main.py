@@ -25,6 +25,17 @@ def root():
     return {"message": "running"}
 
 # Registers every endpoint.
-from api.routes import account, assistant
+from api.routes import account, assistant , people_debug , market , weather , email , imagegen
+
 app.include_router(account.router)
 app.include_router(assistant.router)
+# Added for the RAG name one's. 
+app.include_router(people_debug.router)
+# Added for the Crypto Currency data
+app.include_router(market.router)
+# Added for the weather
+app.include_router(weather.router)
+# Added the email one
+app.include_router(email.router)
+# Added for the image generation
+app.include_router(imagegen.router)

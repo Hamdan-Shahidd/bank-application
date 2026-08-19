@@ -82,3 +82,84 @@ class DepositConfirmRequest(BaseModel):
 
 class WithdrawConfirmRequest(BaseModel):
     amount: int
+
+
+class CryptoPrice(BaseModel):
+    symbol: str
+    ticker: str
+    price_usd: float
+    change_pct_today: float
+
+
+class CryptoPricesResponse(BaseModel):
+    prices: list[CryptoPrice]
+    stale: bool
+    error: Optional[str] = None
+
+class CityWeather(BaseModel):
+    city: str
+    temperature_c: float
+    windspeed_kmh: float
+    condition: str
+    observed_at: str
+
+
+class WeatherResponse(BaseModel):
+    cities: list[CityWeather]
+    stale: bool
+    error: Optional[str] = None
+
+
+class EmailDraft(BaseModel):
+    recipient: str
+    subject: str
+    body: str
+    tone: str = "professional"
+
+
+class EmailRefineRequest(BaseModel):
+    subject: str
+    body: str
+    instruction: str
+
+
+class EmailRefineResponse(BaseModel):
+    subject: str
+    body: str
+
+
+class EmailSendRequest(BaseModel):
+    recipient: str
+    subject: str
+    body: str
+
+
+class EmailSendResponse(BaseModel):
+    sent: bool
+    error: Optional[str] = None
+
+
+# Schema of web searches
+class SearchResultItem(BaseModel):
+    title: str
+    url: str
+    snippet: str
+    score: float
+
+
+class WebSearchResponse(BaseModel):
+    answer: Optional[str] = None
+    results: list[SearchResultItem] = []
+    query: str
+    cached: bool = False
+    error: Optional[str] = None
+
+# Image Generation
+class ImageGenRequest(BaseModel):
+    prompt: str
+
+class ImageGenResponse(BaseModel):
+    image_b64: Optional[str] = None
+    prompt: str
+    cached: bool = False
+    error: Optional[str] = None

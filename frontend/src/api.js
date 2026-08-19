@@ -57,3 +57,22 @@ export const confirmDeposit = (amount) =>
 
 export const confirmWithdraw = (amount) =>
     api.post('/assistant/confirm_withdraw', { amount })
+
+// Added for the people's information RAG system.
+export const sendPeopleQuery = (message) =>
+    api.post('/debug/people-query', { message })
+
+// Added for the crypto coin prices (Five)
+export const getCryptoPrices = () =>
+    api.get('/market/crypto')
+
+// Added for the weather api
+export const getWeather = () =>
+    api.get('/weather/cities')
+
+// Added for the email generation one's
+export const refineEmail = (subject, body, instruction) =>
+    api.post('/email/refine', { subject, body, instruction })
+
+export const sendEmail = (recipient, subject, body) =>
+    api.post('/email/send', { recipient, subject, body })
