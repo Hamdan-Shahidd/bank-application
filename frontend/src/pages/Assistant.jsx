@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { sendMessage, sendPeopleQuery, confirmTransfer, confirmDeposit, confirmWithdraw, refineEmail, sendEmail } from '../api'
 import AppShell from '../components/AppShell'
 import { Send, Bot, Mail, Send as SendIcon, Wand2, Globe, ExternalLink } from 'lucide-react'
+import api from '../api'
 const PROMPTS = [
     'What is my current balance?',
     'Show me my recent transactions',
@@ -139,11 +140,25 @@ export default function Assistant() {
         }
     }
 
+    async function handleConnectGoogle() {
+    try {
+        const res = await api.get('/auth/google/connect-url')
+        window.location.href = res.data.url
+    } catch (err) {
+        console.error('Google connect error:', err)   // <-- add this line
+        setError('Could not start Google connection')
+    }
+}
+
     return (
         <AppShell>
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Apex Assistant</h1>
+
+                    <button className="btn btn-secondary" onClick={handleConnectGoogle}>
+                        Connect Google (Email &amp; Calendar)
+                    </button>
 
                     {/* TEMP: RAG debug toggle — remove when done testing */}
                     <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
@@ -286,6 +301,15 @@ export default function Assistant() {
                                 )}
 
 
+                                {msg.role === 'assistant' && msg.kind === 'calendar_event_added' && msg.details && (
+                                    <div className="chat-details">
+                                        {msg.details.added
+                                            ? <p>Added to your calendar.</p>
+                                            : <p>{msg.details.error}</p>}
+                                    </div>
+                                )}
+
+
                                 {msg.role === 'assistant' && msg.kind === 'web_search' && msg.details && (
                                     <div className="chat-details">
                                         {msg.details.error ? (
@@ -381,6 +405,7 @@ export default function Assistant() {
                                                 >
                                                     <Wand2 size={14} /> {msg.details.refining ? '...' : 'Refine'}
                                                 </button>
+
                                             </div>
                                             <div className="field-quick-amounts">
                                                 {['Make it shorter', 'More formal', 'More friendly', 'Add more detail'].map(q => (
@@ -421,6 +446,7 @@ export default function Assistant() {
                     ))}
                     <div ref={bottomRef} />
                 </div>
+
 
                 <form onSubmit={handleSubmit}>
                     <div className="chat-input-bar">

@@ -76,3 +76,11 @@ export const refineEmail = (subject, body, instruction) =>
 
 export const sendEmail = (recipient, subject, body) =>
     api.post('/email/send', { recipient, subject, body })
+
+export const requestSignupCode = (gmail) =>
+    api.post('/signup/request-code', { gmail })
+
+export const verifySignupCode = (username, gmail, password, code) =>
+    api.post('/signup/verify-code', { username, gmail, password, code })
+
+export default api

@@ -8,3 +8,7 @@ logs/
 chroma_db_clauses/
 chroma_db_people/
 test_output.png
+node_modules/
+data/
+google-calendar-credentials.json
+*credentials*.json

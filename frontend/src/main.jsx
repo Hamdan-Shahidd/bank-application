@@ -11,6 +11,9 @@ import Assistant from './pages/Assistant'
 import Withdraw from './pages/Withdraw'
 import Crypto from './pages/Crypto'
 import Weather from './pages/Weather'
+import OAuthCallback from './pages/OAuthCallback'
+
+
 
 function PrivateRoute({ children }) {
     const token = localStorage.getItem('token')
@@ -45,6 +48,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/weather" element={
                 <PrivateRoute><Weather /></PrivateRoute>
             } />
+
+            <Route path="/oauth-callback" element={<OAuthCallback />} />
             
             <Route path="/" element={<Navigate to="/dashboard" />} />
         </Routes>

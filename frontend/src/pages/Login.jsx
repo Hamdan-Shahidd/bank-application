@@ -31,6 +31,10 @@ export default function Login() {
                     </div>
                     <h1 className="auth-title">Welcome back.</h1>
                     <p className="auth-subtitle">Sign in to securely access your account.</p>
+                    <button type="button" className="btn btn-secondary btn-full"
+                        onClick={() => { window.location.href = 'http://localhost:8000/auth/google/login' }}>
+                        Continue with Google
+                    </button>
 
                     {error && <div className="alert alert-error">{error}</div>}
 

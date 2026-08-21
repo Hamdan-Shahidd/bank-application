@@ -163,3 +163,17 @@ class ImageGenResponse(BaseModel):
     prompt: str
     cached: bool = False
     error: Optional[str] = None
+
+# For OTP generation
+class OTPRequestRequest(BaseModel):
+    gmail: str
+
+class OTPVerifyRequest(BaseModel):
+    username: str
+    gmail: str
+    password: str
+    code: str
+
+class OTPResponse(BaseModel):
+    success: bool
+    error: Optional[str] = None

@@ -64,6 +64,10 @@ class SqliteStorage:
         schema = Path(__file__).parent.parent / "schema.sql"
         with open(schema) as f:
             conn.executescript(f.read())
+        # Following migrations are called here because they cause errors if added in the schema.sql
+        self._ensure_verification_column()
+        self._ensure_calendar_columns()
+        self._ensure_google_columns()
 
     def _connect(self):
         conn = sqlite3.connect(self.path)
@@ -189,3 +193,70 @@ class SqliteStorage:
         """
         rows = self.conn.execute(sql, (user_id, user_id)).fetchall()
         return [dict(r) for r in rows]
+
+
+    def _ensure_verification_column(self):
+        existing = {row["name"] for row in self.conn.execute("PRAGMA table_info(users)")}
+        if "gmail_verified" not in existing:
+            with self.conn:
+                self.conn.execute(
+                    "ALTER TABLE users ADD COLUMN gmail_verified INTEGER NOT NULL DEFAULT 0"
+                )
+
+    def mark_gmail_verified(self, user_id):
+        with self.conn:
+            self.conn.execute("UPDATE users SET gmail_verified = 1 WHERE id = ?", (user_id,))
+
+    def _ensure_calendar_columns(self):
+        existing = {row["name"] for row in self.conn.execute("PRAGMA table_info(users)")}
+        with self.conn:
+            if "calendar_refresh_token" not in existing:
+                self.conn.execute("ALTER TABLE users ADD COLUMN calendar_refresh_token TEXT")
+            if "calendar_connected" not in existing:
+                self.conn.execute(
+                    "ALTER TABLE users ADD COLUMN calendar_connected INTEGER NOT NULL DEFAULT 0"
+                )
+
+    def link_calendar(self, user_id, encrypted_refresh_token):
+        with self.conn:
+            self.conn.execute(
+                "UPDATE users SET calendar_refresh_token = ?, calendar_connected = 1 WHERE id = ?",
+                (encrypted_refresh_token, user_id),
+            )
+
+    def get_calendar_refresh_token(self, user_id):
+        row = self.conn.execute(
+            "SELECT calendar_refresh_token FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+        return row["calendar_refresh_token"] if row and row["calendar_refresh_token"] else None
+
+    def _ensure_google_columns(self):
+        existing = {row["name"] for row in self.conn.execute("PRAGMA table_info(users)")}
+        with self.conn:
+            if "google_id" not in existing:
+                self.conn.execute("ALTER TABLE users ADD COLUMN google_id TEXT")
+            if "google_refresh_token" not in existing:
+                self.conn.execute("ALTER TABLE users ADD COLUMN google_refresh_token TEXT")
+            if "google_connected" not in existing:
+                self.conn.execute(
+                    "ALTER TABLE users ADD COLUMN google_connected INTEGER NOT NULL DEFAULT 0"
+                )
+
+    def find_by_google_id(self, google_id):
+        row = self.conn.execute(
+            "SELECT * FROM users WHERE google_id = ?", (google_id,)).fetchone()
+        return self._to_user(row) if row else None
+
+    def link_google_account(self, user_id, google_id, encrypted_refresh_token):
+        with self.conn:
+            self.conn.execute(
+                "UPDATE users SET google_id = ?, google_refresh_token = ?, "
+                "google_connected = 1, gmail_verified = 1 WHERE id = ?",
+                (google_id, encrypted_refresh_token, user_id),
+            )
+
+    def get_google_refresh_token(self, user_id):
+        row = self.conn.execute(
+            "SELECT google_refresh_token FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+        return row["google_refresh_token"] if row and row["google_refresh_token"] else None

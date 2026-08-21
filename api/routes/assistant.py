@@ -5,10 +5,15 @@ from api.main import bank
 from ai.agent import interpret , summarize_results
 from core.market import get_crypto_prices as fetch_crypto_prices
 from core.weather import get_weather as fetch_weather
-from ai.agent import compose_email_body
+from ai.agent import compose_email_body , answer_gmail_query
 from core.web_search import web_search as run_web_search
 router = APIRouter()
 from core.imagegen import generate_image as run_image_gen
+from core.user_calendar_service import add_event as add_calendar_event
+from core.gmail_reader_service import search_inbox
+
+    
+
 
 @router.post("/assistant", response_model=AssistantResponse)
 def assistant(body: AssistantRequest, user=Depends(current_user)):
@@ -73,6 +78,29 @@ def assistant(body: AssistantRequest, user=Depends(current_user)):
             return AssistantResponse(kind="text", text=answer)
         except ValueError:
             return AssistantResponse(kind="text", text="I can't run that kind of question.")
+
+    elif kind == "add_calendar_event_tool":
+        refresh_token = bank.storage.get_google_refresh_token(user.user_id)
+        if not refresh_token:
+            return AssistantResponse(kind="text",
+                text="Connect your Google account first -- click 'Connect Google' on the Assistant page.")
+        result = add_calendar_event(
+            refresh_token, payload.get("date", ""), payload.get("time", ""),
+            payload.get("duration_minutes", 30), payload.get("title", "Event"),
+        )
+        return AssistantResponse(kind="calendar_event_added", details=result)
+
+    elif kind == "read_gmail_tool":
+        refresh_token = bank.storage.get_google_refresh_token(user.user_id)
+        if not refresh_token:
+            return AssistantResponse(kind="text",
+                text="Connect your Google account first to read your inbox.")
+        query = payload.get("query", "")
+        result = search_inbox(refresh_token, query)
+        if result["error"]:
+            return AssistantResponse(kind="text", text=result["error"])
+        answer = answer_gmail_query(query or "recent emails", result["messages"])
+        return AssistantResponse(kind="text", text=answer)
     
     return AssistantResponse(kind="text", text=payload)
 

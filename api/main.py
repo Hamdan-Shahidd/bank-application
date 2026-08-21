@@ -25,7 +25,7 @@ def root():
     return {"message": "running"}
 
 # Registers every endpoint.
-from api.routes import account, assistant , people_debug , market , weather , email , imagegen
+from api.routes import account, assistant , people_debug , market , weather , email , imagegen , signup_OTP  , oauth
 
 app.include_router(account.router)
 app.include_router(assistant.router)
@@ -39,3 +39,7 @@ app.include_router(weather.router)
 app.include_router(email.router)
 # Added for the image generation
 app.include_router(imagegen.router)
+# For OTP
+app.include_router(signup_OTP.router)
+# For google auth
+app.include_router(oauth.router)
