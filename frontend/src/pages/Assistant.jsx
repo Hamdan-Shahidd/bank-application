@@ -241,6 +241,24 @@ export default function Assistant() {
                                     </div>
                                 )}
 
+                                {msg.role === 'assistant' && msg.kind === 'gmail_answer' && msg.details && (
+                                    <div className="chat-details">
+                                        <p>{msg.details.answer}</p>
+                                        {msg.details.sources?.length > 0 && (
+                                            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
+                                                <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '0.35rem' }}>
+                                                    Based on {msg.details.sources.length} email{msg.details.sources.length > 1 ? 's' : ''}
+                                                </p>
+                                                {msg.details.sources.map((s, i) => (
+                                                    <div key={i} style={{ fontSize: '0.8rem', marginBottom: '0.2rem' }}>
+                                                        <strong>{s.subject}</strong> — {s.from} ({s.date})
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                                 {/* Weather */}
                                 {msg.role === 'assistant' && msg.kind === 'weather_info' && msg.details && (
                                     <div className="chat-details">

@@ -65,3 +65,16 @@ def search_inbox(encrypted_refresh_token, query="", max_results=5):
     except Exception as e:
         logger.warning(f"GMAIL SEARCH FAILED | {e}")
         return {"messages": [], "error": "Could not search the inbox right now."}
+
+
+def build_gmail_query(from_person="", subject_keyword="", sent_by_user=False, days_back=0):
+    parts = []
+    if sent_by_user:
+        parts.append("from:me")
+    elif from_person:
+        parts.append(f"from:{from_person}")
+    if subject_keyword:
+        parts.append(f"subject:{subject_keyword}")
+    if days_back and days_back > 0:
+        parts.append(f"newer_than:{days_back}d")
+    return " ".join(parts)

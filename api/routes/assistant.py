@@ -10,12 +10,13 @@ from core.web_search import web_search as run_web_search
 router = APIRouter()
 from core.imagegen import generate_image as run_image_gen
 from core.user_calendar_service import add_event as add_calendar_event
-from core.gmail_reader_service import search_inbox
+from core.gmail_reader_service import search_inbox , build_gmail_query
 from core.user_calendar_service import (
     add_event as add_calendar_event,
     find_events_matching, delete_event as delete_calendar_event,
     update_event as update_calendar_event,
 )
+from logging_config import logger
 
 def _resolve_one_event(refresh_token, date, title_keyword):
     """Shared helper: search, and return either one match, an ambiguity
@@ -107,17 +108,6 @@ def assistant(body: AssistantRequest, user=Depends(current_user)):
         )
         return AssistantResponse(kind="calendar_event_added", details=result)
 
-    elif kind == "read_gmail_tool":
-        refresh_token = bank.storage.get_google_refresh_token(user.user_id)
-        if not refresh_token:
-            return AssistantResponse(kind="text",
-                text="Connect your Google account first to read your inbox.")
-        query = payload.get("query", "")
-        result = search_inbox(refresh_token, query)
-        if result["error"]:
-            return AssistantResponse(kind="text", text=result["error"])
-        answer = answer_gmail_query(query or "recent emails", result["messages"])
-        return AssistantResponse(kind="text", text=answer)
 
     elif kind == "delete_calendar_event_tool":
         refresh_token = bank.storage.get_google_refresh_token(user.user_id)
@@ -144,6 +134,32 @@ def assistant(body: AssistantRequest, user=Depends(current_user)):
             title=payload.get("new_title") or None,
         )
         return AssistantResponse(kind="calendar_event_updated", details=result)
+
+    elif kind == "read_gmail_tool":
+        refresh_token = bank.storage.get_google_refresh_token(user.user_id)
+        if not refresh_token:
+            return AssistantResponse(kind="text", text="Connect your Google account first to read your inbox.")
+
+        logger.info(f"GMAIL TOOL PAYLOAD | {payload}")
+        query = build_gmail_query(
+            from_person=payload.get("from_person", ""),
+            subject_keyword=payload.get("subject_keyword", ""),
+            sent_by_user=payload.get("sent_by_user", False),
+            days_back=payload.get("days_back", 0),
+        )
+        max_results = payload.get("max_results", 5)
+        result = search_inbox(refresh_token, query, max_results)
+        if result["error"]:
+            return AssistantResponse(kind="text", text=result["error"])
+
+        # Pass the user's ORIGINAL question, not the constructed query --
+        # `body.message` is the actual sentence they typed.
+        answer = answer_gmail_query(body.message, result["messages"])
+        return AssistantResponse(kind="gmail_answer", details={
+            "answer": answer,
+            "sources": [{"from": m["from"], "subject": m["subject"], "date": m["date"]}
+                        for m in result["messages"]],
+        })
     
     return AssistantResponse(kind="text", text=payload)
 
