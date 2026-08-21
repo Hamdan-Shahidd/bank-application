@@ -123,6 +123,26 @@ def read_gmail_tool(query: str = "") -> str:
     specific email."""
     return "reading"
 
+@tool
+def delete_calendar_event_tool(date: str = "", title_keyword: str = "") -> str:
+    """Delete/cancel an event from the user's personal Google Calendar.
+    Provide 'date' (YYYY-MM-DD) and/or 'title_keyword' to identify which
+    event. If the search could match more than one event, ask the user
+    to clarify instead of guessing."""
+    return "deleting"
+
+
+@tool
+def update_calendar_event_tool(date: str = "", title_keyword: str = "",
+                               new_date: str = "", new_time: str = "",
+                               new_duration_minutes: int = 0, new_title: str = "") -> str:
+    """Reschedule or edit an event on the user's personal Google Calendar.
+    Use 'date'/'title_keyword' to identify the EXISTING event to change.
+    Use 'new_date'/'new_time'/'new_duration_minutes'/'new_title' for what
+    to change — leave any field you're not changing empty/0.
+    If the search could match more than one event, ask the user to
+    clarify instead of guessing."""
+    return "updating"
 
 llm_with_tools = llm.bind_tools([
     propose_transfer , 
@@ -137,6 +157,8 @@ llm_with_tools = llm.bind_tools([
     generate_image_tool,
     add_calendar_event_tool,
     read_gmail_tool,
+    delete_calendar_event_tool,
+    update_calendar_event_tool,
     ])
 
 system = (
@@ -172,6 +194,9 @@ system = (
     "add_calendar_event_tool. Resolve relative dates using today's date. "
     "If the user asks about their email inbox or a specific email they "
     "received, call read_gmail_tool. "
+    "If the user wants to cancel/delete a calendar event, call "
+    "delete_calendar_event_tool. If they want to reschedule or edit one, "
+    "call update_calendar_event_tool. "
 )
 
 # It is a single routing function for your agent. Every message pass through this function. 

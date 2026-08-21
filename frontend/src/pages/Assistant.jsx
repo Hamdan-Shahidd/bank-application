@@ -211,6 +211,19 @@ export default function Assistant() {
                                     </div>
                                 )}
 
+
+                                {msg.role === 'assistant' && msg.kind === 'calendar_event_deleted' && msg.details && (
+                                    <div className="chat-details">
+                                        {msg.details.deleted ? <p>Event deleted from your calendar.</p> : <p>{msg.details.error}</p>}
+                                    </div>
+                                )}
+
+                                {msg.role === 'assistant' && msg.kind === 'calendar_event_updated' && msg.details && (
+                                    <div className="chat-details">
+                                        {msg.details.updated ? <p>Event updated.</p> : <p>{msg.details.error}</p>}
+                                    </div>
+                                )}
+
                                 {/* Crypto prices */}
                                 {msg.role === 'assistant' && msg.kind === 'crypto_prices' && msg.details && (
                                     <div className="chat-details">

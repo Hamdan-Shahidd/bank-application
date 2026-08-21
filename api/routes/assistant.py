@@ -11,8 +11,25 @@ router = APIRouter()
 from core.imagegen import generate_image as run_image_gen
 from core.user_calendar_service import add_event as add_calendar_event
 from core.gmail_reader_service import search_inbox
+from core.user_calendar_service import (
+    add_event as add_calendar_event,
+    find_events_matching, delete_event as delete_calendar_event,
+    update_event as update_calendar_event,
+)
 
-    
+def _resolve_one_event(refresh_token, date, title_keyword):
+    """Shared helper: search, and return either one match, an ambiguity
+    message, or a not-found message."""
+    result = find_events_matching(refresh_token, date or None, title_keyword)
+    if result["error"]:
+        return None, result["error"]
+    matches = result["events"]
+    if not matches:
+        return None, "I couldn't find a matching event."
+    if len(matches) > 1:
+        listing = "\n".join(f"- {m['title']} at {m['start']}" for m in matches)
+        return None, f"I found more than one matching event — which did you mean?\n{listing}"
+    return matches[0], None
 
 
 @router.post("/assistant", response_model=AssistantResponse)
@@ -101,6 +118,32 @@ def assistant(body: AssistantRequest, user=Depends(current_user)):
             return AssistantResponse(kind="text", text=result["error"])
         answer = answer_gmail_query(query or "recent emails", result["messages"])
         return AssistantResponse(kind="text", text=answer)
+
+    elif kind == "delete_calendar_event_tool":
+        refresh_token = bank.storage.get_google_refresh_token(user.user_id)
+        if not refresh_token:
+            return AssistantResponse(kind="text", text="Connect your Google account first.")
+        event, err = _resolve_one_event(refresh_token, payload.get("date", ""), payload.get("title_keyword", ""))
+        if err:
+            return AssistantResponse(kind="text", text=err)
+        result = delete_calendar_event(refresh_token, event["event_id"])
+        return AssistantResponse(kind="calendar_event_deleted", details=result)
+
+    elif kind == "update_calendar_event_tool":
+        refresh_token = bank.storage.get_google_refresh_token(user.user_id)
+        if not refresh_token:
+            return AssistantResponse(kind="text", text="Connect your Google account first.")
+        event, err = _resolve_one_event(refresh_token, payload.get("date", ""), payload.get("title_keyword", ""))
+        if err:
+            return AssistantResponse(kind="text", text=err)
+        result = update_calendar_event(
+            refresh_token, event["event_id"],
+            date=payload.get("new_date") or None,
+            time=payload.get("new_time") or None,
+            duration_minutes=payload.get("new_duration_minutes") or None,
+            title=payload.get("new_title") or None,
+        )
+        return AssistantResponse(kind="calendar_event_updated", details=result)
     
     return AssistantResponse(kind="text", text=payload)
 
