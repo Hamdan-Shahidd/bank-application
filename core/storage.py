@@ -260,3 +260,56 @@ class SqliteStorage:
             "SELECT google_refresh_token FROM users WHERE id = ?", (user_id,)
         ).fetchone()
         return row["google_refresh_token"] if row and row["google_refresh_token"] else None
+
+
+    """
+    The following functionality is added as a memory layer. Every message the agent sees is stored ->
+    recent messages are retrived -> those messages are placed back in the AI prompt -> agent continue with context
+    """
+    # Stores the message in the database. Role tells your agent who produced the message (user , assistant , system , tool)
+    def add_message(self, user_id, role, content, tool_name=None):
+        # Uses your database as context manager. it help manage the transaction.
+        with self.conn:
+            # Executes the SQL equilants. Use placeholders ('?') which are replaced, prevents SQL injection.
+            # Database drivers handle these placeholder values.
+            self.conn.execute(
+                "INSERT INTO conversation_messages (user_id, role, content, tool_name)"
+                " VALUES (?, ?, ?, ?)",
+                (user_id, role, content, tool_name)
+            )
+
+    # Retrives the most recent messages belonging to a particular user.
+    def recent_messages(self, user_id, limit=10):
+        # fetchall() takes all rows returned by the SQL and puts them into python (dictionary in our case).
+        rows = self.conn.execute(
+            "SELECT role, content, tool_name, created_at FROM conversation_messages"
+            " WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
+            (user_id, limit)
+        ).fetchall()
+        return [dict(r) for r in reversed(rows)]   # oldest -> newest for prompt order
+
+    # Deltes the complete memory of a specific user.
+    def clear_messages(self, user_id):
+        with self.conn:
+            self.conn.execute("DELETE FROM conversation_messages WHERE user_id = ?", (user_id,))
+
+    """
+    The following store facts about the user. So we can call it long-term factual memory. 
+    """
+    # Store the fact about a particular user or updates it if that already exists. 
+    def set_memory_fact(self, user_id, key, value):
+        with self.conn:
+            # Excluded in the following is the new value that we tried to enter in the database. 
+            self.conn.execute(
+                "INSERT INTO user_memory (user_id, key, value, updated_at)"
+                " VALUES (?, ?, ?, datetime('now'))"
+                " ON CONFLICT(user_id, key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
+                (user_id, key, value)
+            )
+
+    # Read all the facts about a particular user.
+    def get_memory_facts(self, user_id):
+        rows = self.conn.execute(
+            "SELECT key, value FROM user_memory WHERE user_id = ?", (user_id,)
+        ).fetchall()
+        return {r["key"]: r["value"] for r in rows}

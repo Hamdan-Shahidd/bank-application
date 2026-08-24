@@ -32,13 +32,29 @@ def _resolve_one_event(refresh_token, date, title_keyword):
         return None, f"I found more than one matching event — which did you mean?\n{listing}"
     return matches[0], None
 
+# Formatter for agent's memory. Takes the result of agent interaction and turns it into piece of text that
+# can be stored in conversational memory.
+def _summarize_for_memory(kind, payload, response):
+    if response.text:
+        return response.text
+    if kind.startswith("propose_"):
+        return f"[{kind}] {payload}"
+    return f"[{kind}] {response.details}"
+
+
 
 @router.post("/assistant", response_model=AssistantResponse)
 def assistant(body: AssistantRequest, user=Depends(current_user)):
-    kind, payload = interpret(body.message)
+
+    """
+    Connection between our database memory and ai agent.
+    """
+    history = bank.storage.recent_messages(user.user_id, limit=10)
+    facts = bank.storage.get_memory_facts(user.user_id)
+    kind, payload = interpret(body.message, history=history, facts=facts)
 
     if kind == "propose_transfer":
-        return AssistantResponse(kind="proposal", proposal=payload)
+        response = AssistantResponse(kind="proposal", proposal=payload)
 
     elif kind == "get_account_details":
         details = {
@@ -46,30 +62,30 @@ def assistant(body: AssistantRequest, user=Depends(current_user)):
             "account_number": user.account_number,
             "balance": user.balance,
         }
-        return AssistantResponse(kind="account_details", details=details)
+        response = AssistantResponse(kind="account_details", details=details)
 
     elif kind == "get_weather_info":
         city = payload.get("city", "")
         result = fetch_weather(city=city)
-        return AssistantResponse(kind="weather_info", details=result)
+        response = AssistantResponse(kind="weather_info", details=result)
 
     elif kind == "get_crypto_prices":
         symbol = payload.get("symbol", "")
         result = fetch_crypto_prices(symbol=symbol)
-        return AssistantResponse(kind="crypto_prices", details=result)
+        response = AssistantResponse(kind="crypto_prices", details=result)
 
     elif kind == "propose_deposit":
-        return AssistantResponse(kind="proposal_deposit", proposal=payload)
+        response = AssistantResponse(kind="proposal_deposit", proposal=payload)
 
     elif kind == "propose_withdrawal":
-        return AssistantResponse(kind="proposal_withdrawal", proposal=payload)
+        response = AssistantResponse(kind="proposal_withdrawal", proposal=payload)
 
     elif kind == "compose_email":
         recipient = payload.get("recipient", "")
         purpose = payload.get("purpose", "")
         tone = payload.get("tone", "professional")
         draft = compose_email_body(recipient, purpose, tone)
-        return AssistantResponse(kind="email_draft", details={
+        response = AssistantResponse(kind="email_draft", details={
             "recipient": recipient,
             "subject": draft["subject"],
             "body": draft["body"],
@@ -80,88 +96,105 @@ def assistant(body: AssistantRequest, user=Depends(current_user)):
         query = payload.get("query", "")
         topic = payload.get("topic", "general")
         result = run_web_search(user.user_id, query, topic)
-        return AssistantResponse(kind="web_search", details=result)
+        response = AssistantResponse(kind="web_search", details=result)
 
     elif kind == "generate_image_tool":
         prompt = payload.get("prompt", "")
         result = run_image_gen(user.user_id, prompt)
-        return AssistantResponse(kind="generated_image", details=result)
-    
+        response = AssistantResponse(kind="generated_image", details=result)
+
     # For SQL Agent
     elif kind == "query_transactions":
         condition = payload.get("condition", "")
         try:
             rows = bank.query_transactions(user, condition)
             answer = summarize_results(body.message, rows)
-            return AssistantResponse(kind="text", text=answer)
+            response = AssistantResponse(kind="text", text=answer)
         except ValueError:
-            return AssistantResponse(kind="text", text="I can't run that kind of question.")
+            response = AssistantResponse(kind="text", text="I can't run that kind of question.")
 
     elif kind == "add_calendar_event_tool":
         refresh_token = bank.storage.get_google_refresh_token(user.user_id)
         if not refresh_token:
-            return AssistantResponse(kind="text",
+            response = AssistantResponse(kind="text",
                 text="Connect your Google account first -- click 'Connect Google' on the Assistant page.")
-        result = add_calendar_event(
-            refresh_token, payload.get("date", ""), payload.get("time", ""),
-            payload.get("duration_minutes", 30), payload.get("title", "Event"),
-        )
-        return AssistantResponse(kind="calendar_event_added", details=result)
-
+        else:
+            result = add_calendar_event(
+                refresh_token, payload.get("date", ""), payload.get("time", ""),
+                payload.get("duration_minutes", 30), payload.get("title", "Event"),
+            )
+            response = AssistantResponse(kind="calendar_event_added", details=result)
 
     elif kind == "delete_calendar_event_tool":
         refresh_token = bank.storage.get_google_refresh_token(user.user_id)
         if not refresh_token:
-            return AssistantResponse(kind="text", text="Connect your Google account first.")
-        event, err = _resolve_one_event(refresh_token, payload.get("date", ""), payload.get("title_keyword", ""))
-        if err:
-            return AssistantResponse(kind="text", text=err)
-        result = delete_calendar_event(refresh_token, event["event_id"])
-        return AssistantResponse(kind="calendar_event_deleted", details=result)
+            response = AssistantResponse(kind="text", text="Connect your Google account first.")
+        else:
+            event, err = _resolve_one_event(refresh_token, payload.get("date", ""), payload.get("title_keyword", ""))
+            if err:
+                response = AssistantResponse(kind="text", text=err)
+            else:
+                result = delete_calendar_event(refresh_token, event["event_id"])
+                response = AssistantResponse(kind="calendar_event_deleted", details=result)
 
     elif kind == "update_calendar_event_tool":
         refresh_token = bank.storage.get_google_refresh_token(user.user_id)
         if not refresh_token:
-            return AssistantResponse(kind="text", text="Connect your Google account first.")
-        event, err = _resolve_one_event(refresh_token, payload.get("date", ""), payload.get("title_keyword", ""))
-        if err:
-            return AssistantResponse(kind="text", text=err)
-        result = update_calendar_event(
-            refresh_token, event["event_id"],
-            date=payload.get("new_date") or None,
-            time=payload.get("new_time") or None,
-            duration_minutes=payload.get("new_duration_minutes") or None,
-            title=payload.get("new_title") or None,
-        )
-        return AssistantResponse(kind="calendar_event_updated", details=result)
+            response = AssistantResponse(kind="text", text="Connect your Google account first.")
+        else:
+            event, err = _resolve_one_event(refresh_token, payload.get("date", ""), payload.get("title_keyword", ""))
+            if err:
+                response = AssistantResponse(kind="text", text=err)
+            else:
+                result = update_calendar_event(
+                    refresh_token, event["event_id"],
+                    date=payload.get("new_date") or None,
+                    time=payload.get("new_time") or None,
+                    duration_minutes=payload.get("new_duration_minutes") or None,
+                    title=payload.get("new_title") or None,
+                )
+                response = AssistantResponse(kind="calendar_event_updated", details=result)
 
     elif kind == "read_gmail_tool":
         refresh_token = bank.storage.get_google_refresh_token(user.user_id)
         if not refresh_token:
-            return AssistantResponse(kind="text", text="Connect your Google account first to read your inbox.")
+            response = AssistantResponse(kind="text", text="Connect your Google account first to read your inbox.")
+        else:
+            logger.info(f"GMAIL TOOL PAYLOAD | {payload}")
+            query = build_gmail_query(
+                from_person=payload.get("from_person", ""),
+                subject_keyword=payload.get("subject_keyword", ""),
+                sent_by_user=payload.get("sent_by_user", False),
+                days_back=payload.get("days_back", 0),
+            )
+            max_results = payload.get("max_results", 5)
+            result = search_inbox(refresh_token, query, max_results)
+            if result["error"]:
+                response = AssistantResponse(kind="text", text=result["error"])
+            else:
+                # Pass the user's ORIGINAL question, not the constructed query --
+                # `body.message` is the actual sentence they typed.
+                answer = answer_gmail_query(body.message, result["messages"])
+                response = AssistantResponse(kind="gmail_answer", details={
+                    "answer": answer,
+                    "sources": [{"from": m["from"], "subject": m["subject"], "date": m["date"]}
+                                for m in result["messages"]],
+                })
 
-        logger.info(f"GMAIL TOOL PAYLOAD | {payload}")
-        query = build_gmail_query(
-            from_person=payload.get("from_person", ""),
-            subject_keyword=payload.get("subject_keyword", ""),
-            sent_by_user=payload.get("sent_by_user", False),
-            days_back=payload.get("days_back", 0),
-        )
-        max_results = payload.get("max_results", 5)
-        result = search_inbox(refresh_token, query, max_results)
-        if result["error"]:
-            return AssistantResponse(kind="text", text=result["error"])
+    elif kind == "remember_fact_tool":
+        bank.storage.set_memory_fact(user.user_id, payload.get("key", ""), payload.get("value", ""))
+        response = AssistantResponse(kind="text", text="Got it, I'll remember that.")
 
-        # Pass the user's ORIGINAL question, not the constructed query --
-        # `body.message` is the actual sentence they typed.
-        answer = answer_gmail_query(body.message, result["messages"])
-        return AssistantResponse(kind="gmail_answer", details={
-            "answer": answer,
-            "sources": [{"from": m["from"], "subject": m["subject"], "date": m["date"]}
-                        for m in result["messages"]],
-        })
-    
-    return AssistantResponse(kind="text", text=payload)
+    else:
+        response = AssistantResponse(kind="text", text=payload)
+
+    bank.storage.add_message(user.user_id, "human", body.message)
+    bank.storage.add_message(
+        user.user_id, "ai",
+        _summarize_for_memory(kind, payload, response),
+        tool_name=kind,
+    )
+    return response
 
 
 @router.post("/assistant/confirm", response_model=MessageResponse)
@@ -171,6 +204,10 @@ def assistant_confirm(body: ConfirmRequest, user=Depends(current_user)):
         return MessageResponse(message="Transfer complete")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/assistant/history")
+def assistant_history(user=Depends(current_user)):
+    return {"messages": bank.storage.recent_messages(user.user_id, limit=50)}
 
 
 @router.post("/assistant/confirm_deposit", response_model=MessageResponse)

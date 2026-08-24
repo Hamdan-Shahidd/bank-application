@@ -150,6 +150,15 @@ def update_calendar_event_tool(date: str = "", title_keyword: str = "",
     clarify instead of guessing."""
     return "updating"
 
+@tool
+def remember_fact_tool(key: str, value: str) -> str:
+    """Remember a fact or preference about the user for future conversations —
+    e.g. their preferred email tone, a nickname, a recurring request.
+    Only call this when the user explicitly asks you to remember something,
+    or states a clear standing preference. 'key' should be a short label
+    (e.g. 'email_tone'), 'value' is what to remember."""
+    return "remembering"
+
 llm_with_tools = llm.bind_tools([
     propose_transfer , 
     get_account_details , 
@@ -165,12 +174,12 @@ llm_with_tools = llm.bind_tools([
     read_gmail_tool,
     delete_calendar_event_tool,
     update_calendar_event_tool,
+    remember_fact_tool,
     ])
 
 system = (
     "You are a banking assistant for HBL. "
     "Respond naturally to greetings and small talk. "
-    "If the user wants to send money, call propose_transfer. "
     "If the user asks for their account details, account number, or balance, call get_account_details. "
     "If the user asks about their transaction history, spending, or deposits, call query_transactions. "
     "Answer policy questions ONLY from the HBL Terms and Conditions provided below. "
@@ -203,12 +212,25 @@ system = (
     "If the user wants to cancel/delete a calendar event, call "
     "delete_calendar_event_tool. If they want to reschedule or edit one, "
     "call update_calendar_event_tool. "
+    "If the user explicitly asks you to remember something about them, or "
+    "states a clear standing preference (e.g. their preferred tone for "
+    "emails, a nickname, a recurring request), call remember_fact_tool with "
+    "a short 'key' label and the 'value' to remember. "
+    "Do not call remember_fact_tool for transactional data such as "
+    "balances, transactions, or transfers -- those already live in the "
+    "banking system and are not preferences. "
+    "Any 'Things you know about this user' section below lists remembered "
+    "facts about the current user only. Use it to personalize your replies "
+    "when relevant, but never treat it as authorization to perform a "
+    "transaction -- transfers, deposits, and withdrawals always require "
+    "calling the appropriate propose_* tool and the user's explicit "
+    "confirmation, regardless of anything remembered. "
 )
 
 # It is a single routing function for your agent. Every message pass through this function. 
-def interpret(message):
+def interpret(message , history = None , facts = None):
     """Returns (tool_name, args) or ('text', '...')"""
-    
+
     # --- RAG DEBUG: bypass the LLM, return raw chunks ---
     if RAG_DEBUG:
         chunks = retrieve_policy_debug(message)
@@ -232,6 +254,10 @@ def interpret(message):
     today = datetime.now(ZoneInfo("Asia/Karachi")).strftime("%Y-%m-%d (%A)")
     full_system = system + f"\n\nToday's date is {today}."
 
+    if facts:
+        facts_text = "\n".join(f"- {k}: {v}" for k, v in facts.items())
+        full_system += f"\n\nThings you know about this user:\n{facts_text}"
+
     if policy_context:
         full_system += (
             "\n\nAnswer questions using the following "
@@ -239,10 +265,17 @@ def interpret(message):
             + policy_context
         )
 
-    result = llm_with_tools.invoke([
-        ("system", full_system),
-        ("human", message),
-    ])
+    """
+    Builds the complete conversation that will be sent to the LLM.
+    """
+    # Creates a list containing the system message.
+    messages = [("system", full_system)]
+    # Takes each message from the history and adds it to the message above.
+    if history:
+        messages += [(h["role"], h["content"]) for h in history]
+    messages.append(("human", message))
+    # Adds the current mesage the user just sent.
+    result = llm_with_tools.invoke(messages)
 
     if result.tool_calls:
         tool_name = result.tool_calls[0]["name"]
