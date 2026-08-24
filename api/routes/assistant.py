@@ -37,6 +37,8 @@ def _resolve_one_event(refresh_token, date, title_keyword):
 def _summarize_for_memory(kind, payload, response):
     if response.text:
         return response.text
+    if kind == "generate_image_tool":
+        return f"[generate_image_tool] Generated an image for: {payload.get('prompt', '')}"
     if kind.startswith("propose_"):
         return f"[{kind}] {payload}"
     return f"[{kind}] {response.details}"
