@@ -102,13 +102,17 @@ def generate_image_tool(prompt: str) -> str:
 
 @tool
 def add_calendar_event_tool(date: str, time: str, duration_minutes: int = 30, title: str = "Event") -> str:
-    """Add an event to the user's own personal Google Calendar.
-    'date' MUST be YYYY-MM-DD format. To compute it: take the exact
-    'Today's date is YYYY-MM-DD' value given to you, then count forward
-    day-by-day (or use the day-of-week given) to reach the target date.
-    NEVER use a year, month, or date from memory or from any other
-    conversation. If uncertain, ask the user to confirm the exact date
-    before calling this tool."""
+    """Reschedule or edit an event on the user's personal Google Calendar.
+    Use 'date'/'title_keyword' to identify the EXISTING event to change.
+    Use 'new_date'/'new_time'/'new_duration_minutes'/'new_title' for what
+    to change — leave any field you're not changing empty/0.
+    'new_time' MUST be 24-hour HH:MM format (e.g. '04:00' for 4am).
+    If the user gives a time range (e.g. "from 4 to 4:30am", "move it to
+    9-10am"), you MUST set BOTH 'new_time' to the start of the range AND
+    'new_duration_minutes' to the length of the range in minutes — do not
+    leave 'new_time' blank when the user specifies a new start time.
+    If the search could match more than one event, ask the user to
+    clarify instead of guessing."""
     return "adding"
 
 @tool
