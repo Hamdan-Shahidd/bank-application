@@ -77,7 +77,7 @@ export default function Signup() {
                     <h1 className="auth-title">Create your account.</h1>
 
                     <button type="button" className="btn btn-secondary btn-full"
-                        onClick={() => { window.location.href = 'http://localhost:8000/auth/google/login' }}>
+                        onClick={() => { window.location.href = '/auth/google/login' }}>
                         Continue with Google
                     </button>
 

@@ -15,27 +15,49 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 
-SCOPES = [
+
+BASIC_SCOPES = [
     "openid",
     "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/userinfo.profile",
+]
+
+EXTENDED_SCOPES = BASIC_SCOPES + [
     "https://www.googleapis.com/auth/gmail.send",
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/calendar.events",
 ]
 
+# Substrings we look for to confirm the user actually ticked the extra
+# permission boxes on the consent screen.
+REQUIRED_EXTENDED_MARKERS = ("gmail.send", "gmail.readonly", "calendar.events")
+
 _pending_states = {}   # state -> "__anonymous__" (Entry A) or user_id (Entry B)
 
 
 def build_auth_url(user_id=None):
-    """user_id=None -> anonymous login flow. Real id -> connect flow."""
+    """user_id=None -> anonymous login flow (basic scopes, open to anyone).
+       Real id      -> connect flow (Gmail + Calendar, test users only)."""
     state = secrets.token_urlsafe(24)
-    _pending_states[state] = user_id if user_id is not None else "__anonymous__"
+    is_login = user_id is None
+    _pending_states[state] = "__anonymous__" if is_login else user_id
+
     params = {
-        "client_id": CLIENT_ID, "redirect_uri": REDIRECT_URI,
-        "response_type": "code", "scope": " ".join(SCOPES),
-        "access_type": "offline", "prompt": "consent", "state": state,
+        "client_id": CLIENT_ID,
+        "redirect_uri": REDIRECT_URI,
+        "response_type": "code",
+        "scope": " ".join(BASIC_SCOPES if is_login else EXTENDED_SCOPES),
+        "state": state,
     }
+
+    if is_login:
+        # No offline access needed -- we only want the id_token for identity.
+        params["prompt"] = "select_account"
+    else:
+        # We need a refresh token we can store and reuse for Gmail/Calendar.
+        params["access_type"] = "offline"
+        params["prompt"] = "consent"
+
     return f"{AUTH_URL}?{urlencode(params)}"
 
 
@@ -62,3 +84,9 @@ def verify_identity(id_token_str):
         "google_id": info["sub"], "email": info["email"],
         "name": info.get("name", info["email"].split("@")[0]),
     }
+
+def has_extended_scopes(granted_scope_string):
+    """Google returns the granted scopes in the token response. Users can
+    untick individual permissions on the consent screen, so verify."""
+    granted = granted_scope_string or ""
+    return all(marker in granted for marker in REQUIRED_EXTENDED_MARKERS)

@@ -1,7 +1,8 @@
 import axios from 'axios'
 
 const api = axios.create({
-    baseURL: 'http://localhost:8000',
+    baseURL: '',
+    headers: { 'ngrok-skip-browser-warning': 'true' },
 })
 
 // Attach token to every request automatically

@@ -1,13 +1,66 @@
 import { useState, useRef, useEffect } from 'react'
-import { sendMessage, sendPeopleQuery, confirmTransfer, confirmDeposit, confirmWithdraw, refineEmail, sendEmail } from '../api'
+import { sendMessage, sendPeopleQuery, confirmTransfer, confirmDeposit, confirmWithdraw, refineEmail, sendEmail, getHistory } from '../api'
 import AppShell from '../components/AppShell'
 import { Send, Bot, Mail, Send as SendIcon, Wand2, Globe, ExternalLink } from 'lucide-react'
 import api from '../api'
+import { useSearchParams } from 'react-router-dom'
+
 const PROMPTS = [
     'What is my current balance?',
     'Show me my recent transactions',
     'Send 100 to an account',
 ]
+
+const SESSION_GAP_MS = 30 * 60 * 1000   // 30 min of silence starts a new "session"
+
+function parseSqliteUtc(s) {
+    // "2026-08-27 14:45:39" (UTC) -> a correct Date
+    return new Date(s.replace(' ', 'T') + 'Z')
+}
+
+function groupIntoSessions(rows) {
+    const sessions = []
+    let current = null
+
+    for (const row of rows) {
+        const at = parseSqliteUtc(row.created_at)
+
+        if (!current || at - current.endedAt > SESSION_GAP_MS) {
+            current = { id: sessions.length, startedAt: at, endedAt: at, messages: [] }
+            sessions.push(current)
+        }
+        current.endedAt = at
+
+        current.messages.push({
+            id: `h-${current.id}-${current.messages.length}`,
+            role: row.role === 'human' ? 'user' : 'assistant',
+            kind: 'text',
+            text: row.content,
+        })
+        setViewingSessionId(null)
+    }
+    return sessions
+}
+
+function sessionTitle(session) {
+    const firstUser = session.messages.find(m => m.role === 'user')
+    const raw = (firstUser?.text || 'Conversation').trim()
+    return raw.length > 42 ? raw.slice(0, 42) + '…' : raw
+}
+
+function sessionWhen(session) {
+    const d = session.startedAt
+    const now = new Date()
+    const yesterday = new Date(now)
+    yesterday.setDate(now.getDate() - 1)
+
+    const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    if (d.toDateString() === now.toDateString()) return `Today ${time}`
+    if (d.toDateString() === yesterday.toDateString()) return `Yesterday ${time}`
+    return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${time}`
+}
+
+
 
 export default function Assistant() {
     const [peopleDebugMode, setPeopleDebugMode] = useState(false)
@@ -17,10 +70,31 @@ export default function Assistant() {
     const [sending, setSending] = useState(false)
     const bottomRef = useRef(null)
     const textareaRef = useRef(null)
+    const [params] = useSearchParams()
+    const [sessions, setSessions] = useState([])
+    const [viewingSessionId, setViewingSessionId] = useState(null)  // null = live chat
+    const [loadingHistory, setLoadingHistory] = useState(true)
+
+    useEffect(() => {
+        const g = params.get('google')
+        if (g === 'partial_scopes') {
+            setError('Please allow both Gmail and Calendar access when connecting.')
+        } else if (g === 'no_refresh_token') {
+            setError('Google did not return a refresh token. Remove this app at ' +
+                    'myaccount.google.com/permissions, then connect again.')
+        }
+    }, [params])
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages])
+
+    useEffect(() => {
+        getHistory()
+            .then(res => setSessions(groupIntoSessions(res.data.messages || [])))
+            .catch(() => {})
+            .finally(() => setLoadingHistory(false))
+    }, [])
 
     async function send(question) {
         if (!question.trim() || sending) return
@@ -150,6 +224,11 @@ export default function Assistant() {
     }
 }
 
+    const viewing = viewingSessionId !== null
+        ? sessions.find(s => s.id === viewingSessionId)
+        : null
+    const displayedMessages = viewing ? viewing.messages : messages
+
     return (
         <AppShell>
             <div className="page-header">
@@ -170,9 +249,51 @@ export default function Assistant() {
 
             {error && <div className="alert alert-error">{error}</div>}
 
+            <div className="chat-layout">
+                <aside className="chat-rail">
+                    <div className="chat-rail-title">Conversations</div>
+
+                    <button
+                        className={`chat-rail-item${viewingSessionId === null ? ' active' : ''}`}
+                        onClick={() => setViewingSessionId(null)}>
+                        <div className="chat-rail-item-title">Current chat</div>
+                        <div className="chat-rail-item-meta">
+                            {messages.length} message{messages.length === 1 ? '' : 's'}
+                        </div>
+                    </button>
+
+                    {loadingHistory && <div className="chat-rail-empty">Loading…</div>}
+                    {!loadingHistory && sessions.length === 0 && (
+                        <div className="chat-rail-empty">No earlier conversations yet.</div>
+                    )}
+
+                    {[...sessions].reverse().map(s => (
+                        <button
+                            key={s.id}
+                            className={`chat-rail-item${viewingSessionId === s.id ? ' active' : ''}`}
+                            onClick={() => setViewingSessionId(s.id)}>
+                            <div className="chat-rail-item-title">{sessionTitle(s)}</div>
+                            <div className="chat-rail-item-meta">
+                                {sessionWhen(s)} · {s.messages.length} msgs
+                            </div>
+                        </button>
+                    ))}
+                </aside>
+
+                <div className="chat-main">
+                    {viewing && (
+                        <div className="chat-viewing-banner">
+                            <span>Viewing an earlier conversation — read only.</span>
+                            <button className="btn btn-secondary"
+                                    onClick={() => setViewingSessionId(null)}>
+                                Back to current chat
+                            </button>
+                        </div>
+                    )}
+
             <div className="card chat-shell">
                 <div className="chat-messages">
-                    {messages.length === 0 && (
+                    {displayedMessages.length === 0 && (
                         <div className="chat-empty">
                             <div className="chat-empty-icon"><Bot size={22} /></div>
                             <h3>How can I help with your finances?</h3>
@@ -185,7 +306,7 @@ export default function Assistant() {
                         </div>
                     )}
 
-                    {messages.map(msg => (
+                    {displayedMessages.map(msg => (
                         <div key={msg.id} className={`chat-row chat-row--${msg.role}`}>
                             <div className={`chat-avatar chat-avatar--${msg.role}`}>
                                 {msg.role === 'user' ? 'Y' : <Bot size={14} />}
@@ -488,6 +609,8 @@ export default function Assistant() {
                     </div>
                 </form>
                 <p className="chat-disclaimer">AI can make mistakes. Consider verifying important financial info.</p>
+            </div>
+                </div>
             </div>
         </AppShell>
     )

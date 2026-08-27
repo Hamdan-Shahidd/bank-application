@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import RedirectResponse, JSONResponse
-from core.google_oauth import build_auth_url, resolve_state, exchange_code_for_tokens, verify_identity, FRONTEND_URL
+from core.google_oauth import build_auth_url, resolve_state, exchange_code_for_tokens, verify_identity, has_extended_scopes, FRONTEND_URL
 from core.token_crypto import encrypt_token
 from core.models import User, hash_password
 from api.auth import create_token, current_user
@@ -50,16 +50,28 @@ def google_callback(code: str, state: str):
             user = bank.storage.create(new_user)
             logger.info(f"SIGNUP VIA GOOGLE | user_id={user.user_id}")
 
-        if refresh_token:
-            bank.storage.link_google_account(
-                user.user_id, identity["google_id"], encrypt_token(refresh_token))
+        # verify_identity() already rejected unverified addresses, so Google
+        # has vouched for this email. Needed for the SMTP fallback in
+        # /email/send, which link_google_account used to set for us.
+        bank.storage.mark_gmail_verified(user.user_id)
 
+        # Deliberately NOT calling link_google_account here -- a basic-scope
+        # login has no Gmail/Calendar access to store.
         jwt_token = create_token(user.user_id)
         return RedirectResponse(f"{FRONTEND_URL}/oauth-callback?token={jwt_token}")
 
     else:
-        if refresh_token:
-            bank.storage.link_google_account(
-                resolved, identity["google_id"], encrypt_token(refresh_token))
-            logger.info(f"GOOGLE CONNECTED (existing user) | user_id={resolved}")
+        if not refresh_token:
+            logger.warning(f"GOOGLE CONNECT NO REFRESH TOKEN | user_id={resolved}")
+            return RedirectResponse(f"{FRONTEND_URL}/assistant?google=no_refresh_token")
+
+        if not has_extended_scopes(tokens.get("scope")):
+            logger.warning(
+                f"GOOGLE CONNECT PARTIAL SCOPES | user_id={resolved} | "
+                f"granted={tokens.get('scope')!r}")
+            return RedirectResponse(f"{FRONTEND_URL}/assistant?google=partial_scopes")
+
+        bank.storage.link_google_account(
+            resolved, identity["google_id"], encrypt_token(refresh_token))
+        logger.info(f"GOOGLE CONNECTED | user_id={resolved}")
         return RedirectResponse(f"{FRONTEND_URL}/assistant?google=connected")
