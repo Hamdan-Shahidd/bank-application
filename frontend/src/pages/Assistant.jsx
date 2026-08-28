@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { sendMessage, sendPeopleQuery, confirmTransfer, confirmDeposit, confirmWithdraw, refineEmail, sendEmail, getHistory } from '../api'
+import { sendMessage, sendPeopleQuery, confirmTransfer, confirmDeposit, confirmWithdraw, refineEmail, sendEmail, getChatHistory } from '../api'
 import AppShell from '../components/AppShell'
 import { Send, Bot, Mail, Send as SendIcon, Wand2, Globe, ExternalLink } from 'lucide-react'
 import api from '../api'
@@ -37,7 +37,6 @@ function groupIntoSessions(rows) {
             kind: 'text',
             text: row.content,
         })
-        setViewingSessionId(null)
     }
     return sessions
 }
@@ -90,14 +89,15 @@ export default function Assistant() {
     }, [messages])
 
     useEffect(() => {
-        getHistory()
+        getChatHistory()
             .then(res => setSessions(groupIntoSessions(res.data.messages || [])))
-            .catch(() => {})
+            .catch(err => console.error('history load failed', err))
             .finally(() => setLoadingHistory(false))
     }, [])
 
     async function send(question) {
         if (!question.trim() || sending) return
+        setViewingSessionId(null)
         setError('')
         setInput('')
         if (textareaRef.current) textareaRef.current.style.height = 'auto'

@@ -50,8 +50,12 @@ export const confirmTransfer = (recipient_account, amount) =>
 export const withdraw = (amount) =>
     api.post('/withdraw', { amount })
 
-export const getHistory = () => 
+export const getHistory = () =>
     api.get('/history')
+
+export const getChatHistory = () =>
+    api.get('/assistant/history')
+
 
 export const confirmDeposit = (amount) =>
     api.post('/assistant/confirm_deposit', { amount })
