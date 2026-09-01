@@ -25,6 +25,7 @@ class TransferRequest(BaseModel):
 
 class AssistantRequest(BaseModel):
     message: str
+    conversation_id: Optional[int] = None
 
 
 class ConfirmRequest(BaseModel):
@@ -55,6 +56,7 @@ class AssistantResponse(BaseModel):
     text: Optional[str] = None
     proposal: Optional[dict] = None
     details: Optional[dict] = None
+    conversation_id: Optional[int] = None
 
 class UserResponse(BaseModel):
     user_id: int
@@ -177,3 +179,19 @@ class OTPVerifyRequest(BaseModel):
 class OTPResponse(BaseModel):
     success: bool
     error: Optional[str] = None
+
+
+class ConversationSummary(BaseModel):
+    id: int
+    title: str
+    created_at: str
+    updated_at: str
+    message_count: int
+
+
+class ConversationListResponse(BaseModel):
+    conversations: list[ConversationSummary]
+
+
+class RenameConversationRequest(BaseModel):
+    title: str

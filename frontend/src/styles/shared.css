@@ -794,6 +794,68 @@ a { color: inherit; }
     padding: 0.5rem;
 }
 
+
+.chat-rail-new {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    width: 100%;
+    background: var(--blue-50);
+    border: 1px solid var(--blue-100);
+    border-radius: 8px;
+    padding: 0.5rem 0.6rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.chat-rail-new:hover { background: var(--blue-100); }
+
+.chat-rail-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.chat-rail-row .chat-rail-item {
+    flex: 1;
+    min-width: 0;               /* lets the title ellipsis actually work */
+    padding-right: 3.2rem;      /* leaves room for the hover actions */
+}
+
+.chat-rail-actions {
+    position: absolute;
+    right: 0.4rem;
+    display: none;
+    gap: 0.1rem;
+}
+.chat-rail-row:hover .chat-rail-actions { display: flex; }
+
+.chat-rail-action {
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    padding: 0.25rem;
+    cursor: pointer;
+    line-height: 0;
+    color: var(--text-tertiary);
+}
+.chat-rail-action:hover { background: var(--gray-100); color: var(--text-primary); }
+.chat-rail-action--danger:hover { background: var(--danger-50); color: var(--danger-700); }
+
+.chat-rail-rename-input {
+    width: 100%;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid var(--blue-100);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text-primary);
+}
+
 .chat-viewing-banner {
     display: flex;
     justify-content: space-between;

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
-import { sendMessage, sendPeopleQuery, confirmTransfer, confirmDeposit, confirmWithdraw, refineEmail, sendEmail, getChatHistory } from '../api'
+import { sendMessage, sendPeopleQuery, confirmTransfer, confirmDeposit, confirmWithdraw, refineEmail, sendEmail, listConversations, getConversationMessages, renameConversation, deleteConversation } from '../api'
 import AppShell from '../components/AppShell'
-import { Send, Bot, Mail, Send as SendIcon, Wand2, Globe, ExternalLink } from 'lucide-react'
+import { Send, Bot, Mail, Send as SendIcon, Wand2, Globe, ExternalLink, Pencil, Trash2, Plus, Check, X } from 'lucide-react'
 import api from '../api'
 import { useSearchParams } from 'react-router-dom'
 
@@ -11,48 +11,12 @@ const PROMPTS = [
     'Send 100 to an account',
 ]
 
-const SESSION_GAP_MS = 30 * 60 * 1000   // 30 min of silence starts a new "session"
 
-function parseSqliteUtc(s) {
-    // "2026-08-27 14:45:39" (UTC) -> a correct Date
-    return new Date(s.replace(' ', 'T') + 'Z')
-}
 
-function groupIntoSessions(rows) {
-    const sessions = []
-    let current = null
-
-    for (const row of rows) {
-        const at = parseSqliteUtc(row.created_at)
-
-        if (!current || at - current.endedAt > SESSION_GAP_MS) {
-            current = { id: sessions.length, startedAt: at, endedAt: at, messages: [] }
-            sessions.push(current)
-        }
-        current.endedAt = at
-
-        current.messages.push({
-            id: `h-${current.id}-${current.messages.length}`,
-            role: row.role === 'human' ? 'user' : 'assistant',
-            kind: 'text',
-            text: row.content,
-        })
-    }
-    return sessions
-}
-
-function sessionTitle(session) {
-    const firstUser = session.messages.find(m => m.role === 'user')
-    const raw = (firstUser?.text || 'Conversation').trim()
-    return raw.length > 42 ? raw.slice(0, 42) + '…' : raw
-}
-
-function sessionWhen(session) {
-    const d = session.startedAt
+function whenLabel(iso) {
+    const d = new Date(iso.replace(' ', 'T') + 'Z')   // SQLite stores UTC
     const now = new Date()
-    const yesterday = new Date(now)
-    yesterday.setDate(now.getDate() - 1)
-
+    const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1)
     const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
     if (d.toDateString() === now.toDateString()) return `Today ${time}`
     if (d.toDateString() === yesterday.toDateString()) return `Yesterday ${time}`
@@ -70,9 +34,12 @@ export default function Assistant() {
     const bottomRef = useRef(null)
     const textareaRef = useRef(null)
     const [params] = useSearchParams()
-    const [sessions, setSessions] = useState([])
-    const [viewingSessionId, setViewingSessionId] = useState(null)  // null = live chat
-    const [loadingHistory, setLoadingHistory] = useState(true)
+    const [conversations, setConversations] = useState([])
+    const [activeId, setActiveId] = useState(null)      // null = unsaved new chat
+    const [loadingList, setLoadingList] = useState(true)
+    const [loadingChat, setLoadingChat] = useState(false)
+    const [renamingId, setRenamingId] = useState(null)
+    const [renameValue, setRenameValue] = useState('')
 
     useEffect(() => {
         const g = params.get('google')
@@ -88,16 +55,22 @@ export default function Assistant() {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages])
 
+
     useEffect(() => {
-        getChatHistory()
-            .then(res => setSessions(groupIntoSessions(res.data.messages || [])))
-            .catch(err => console.error('history load failed', err))
-            .finally(() => setLoadingHistory(false))
+        refreshConversations().finally(() => setLoadingList(false))
     }, [])
+
+    async function refreshConversations() {
+        try {
+            const res = await listConversations()
+            setConversations(res.data.conversations || [])
+        } catch (err) {
+            console.error('conversation list failed', err)
+        }
+    }
 
     async function send(question) {
         if (!question.trim() || sending) return
-        setViewingSessionId(null)
         setError('')
         setInput('')
         if (textareaRef.current) textareaRef.current.style.height = 'auto'
@@ -106,14 +79,21 @@ export default function Assistant() {
         setSending(true)
 
         try {
-            const res = peopleDebugMode ? await sendPeopleQuery(question) : await sendMessage(question)
+            const res = peopleDebugMode ? await sendPeopleQuery(question) : await sendMessage(question, activeId)
             const { kind, text, proposal, details } = res.data
+
+            if (conversation_id && conversation_id !== activeId) {
+            setActiveId(conversation_id)                 
+            }
+
             setMessages(prev => [...prev, {
                 id: Date.now() + 1,
                 role: 'assistant',
                 kind: kind === 'proposal' || kind === 'propose_transfer' ? 'proposal' : kind,
                 text, proposal, details,
             }])
+            refreshConversations()
+
         } catch (err) {
             setError(err.response?.data?.detail || 'Something went wrong')
         } finally {
@@ -147,6 +127,36 @@ export default function Assistant() {
             setError(err.response?.data?.detail || 'Withdrawal failed')
         }
     }
+
+
+
+    async function openConversation(id) {
+        if (id === activeId) return
+        setLoadingChat(true)
+        setError('')
+        try {
+            const res = await getConversationMessages(id)
+            setMessages((res.data.messages || []).map((row, i) => ({
+                id: `db-${id}-${i}`,
+                role: row.role === 'human' ? 'user' : 'assistant',
+                kind: 'text',
+                text: row.content,
+            })))
+            setActiveId(id)          // <-- the key line: subsequent sends append here
+        } catch (err) {
+            setError('Could not open that conversation')
+        } finally {
+            setLoadingChat(false)
+        }
+    }
+
+    function newChat() {
+        setActiveId(null)
+        setMessages([])
+        setError('')
+    }
+
+
 
     function handleCancel(msgId) {
         setMessages(prev => prev.map(m => m.id === msgId ? { ...m, cancelled: true } : m))
@@ -214,6 +224,41 @@ export default function Assistant() {
         }
     }
 
+
+    function startRename(conv) {
+        setRenamingId(conv.id)
+        setRenameValue(conv.title)
+    }
+
+    async function commitRename(id) {
+        const title = renameValue.trim()
+        if (!title) { setRenamingId(null); return }
+        try {
+            await renameConversation(id, title)
+            setConversations(prev => prev.map(c =>
+                c.id === id ? { ...c, title } : c))
+        } catch (err) {
+            setError('Could not rename that conversation')
+        } finally {
+            setRenamingId(null)
+        }
+    }
+
+    async function handleDelete(id) {
+        if (!window.confirm('Delete this conversation? This cannot be undone.')) return
+        try {
+            await deleteConversation(id)
+            setConversations(prev => prev.filter(c => c.id !== id))
+            if (activeId === id) newChat()      // don't strand the user on a dead chat
+        } catch (err) {
+            setError('Could not delete that conversation')
+        }
+    }
+
+
+
+
+
     async function handleConnectGoogle() {
     try {
         const res = await api.get('/auth/google/connect-url')
@@ -224,10 +269,6 @@ export default function Assistant() {
     }
 }
 
-    const viewing = viewingSessionId !== null
-        ? sessions.find(s => s.id === viewingSessionId)
-        : null
-    const displayedMessages = viewing ? viewing.messages : messages
 
     return (
         <AppShell>
@@ -250,50 +291,79 @@ export default function Assistant() {
             {error && <div className="alert alert-error">{error}</div>}
 
             <div className="chat-layout">
+            
                 <aside className="chat-rail">
                     <div className="chat-rail-title">Conversations</div>
 
-                    <button
-                        className={`chat-rail-item${viewingSessionId === null ? ' active' : ''}`}
-                        onClick={() => setViewingSessionId(null)}>
-                        <div className="chat-rail-item-title">Current chat</div>
-                        <div className="chat-rail-item-meta">
-                            {messages.length} message{messages.length === 1 ? '' : 's'}
-                        </div>
+                    <button className="chat-rail-new" onClick={newChat}>
+                        <Plus size={14} /> New chat
                     </button>
 
-                    {loadingHistory && <div className="chat-rail-empty">Loading…</div>}
-                    {!loadingHistory && sessions.length === 0 && (
-                        <div className="chat-rail-empty">No earlier conversations yet.</div>
-                    )}
-
-                    {[...sessions].reverse().map(s => (
-                        <button
-                            key={s.id}
-                            className={`chat-rail-item${viewingSessionId === s.id ? ' active' : ''}`}
-                            onClick={() => setViewingSessionId(s.id)}>
-                            <div className="chat-rail-item-title">{sessionTitle(s)}</div>
-                            <div className="chat-rail-item-meta">
-                                {sessionWhen(s)} · {s.messages.length} msgs
-                            </div>
-                        </button>
-                    ))}
-                </aside>
-
-                <div className="chat-main">
-                    {viewing && (
-                        <div className="chat-viewing-banner">
-                            <span>Viewing an earlier conversation — read only.</span>
-                            <button className="btn btn-secondary"
-                                    onClick={() => setViewingSessionId(null)}>
-                                Back to current chat
+                    {activeId === null && (
+                        <div className="chat-rail-row">
+                            <button className="chat-rail-item active">
+                                <div className="chat-rail-item-title">New chat</div>
+                                <div className="chat-rail-item-meta">
+                                    {messages.length} message{messages.length === 1 ? '' : 's'}
+                                </div>
                             </button>
                         </div>
                     )}
 
+                    {loadingList && <div className="chat-rail-empty">Loading…</div>}
+                    {!loadingList && conversations.length === 0 && (
+                        <div className="chat-rail-empty">No conversations yet.</div>
+                    )}
+
+                    {conversations.map(c => (
+                        <div key={c.id} className="chat-rail-row">
+                            {renamingId === c.id ? (
+                                <input
+                                    className="chat-rail-rename-input"
+                                    value={renameValue}
+                                    autoFocus
+                                    onChange={e => setRenameValue(e.target.value)}
+                                    onBlur={() => commitRename(c.id)}
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter') { e.preventDefault(); commitRename(c.id) }
+                                        if (e.key === 'Escape') setRenamingId(null)
+                                    }}
+                                />
+                            ) : (
+                                <>
+                                    <button
+                                        className={`chat-rail-item${activeId === c.id ? ' active' : ''}`}
+                                        onClick={() => openConversation(c.id)}>
+                                        <div className="chat-rail-item-title">{c.title}</div>
+                                        <div className="chat-rail-item-meta">
+                                            {whenLabel(c.updated_at)} · {c.message_count} msgs
+                                        </div>
+                                    </button>
+
+                                    <div className="chat-rail-actions">
+                                        <button className="chat-rail-action" title="Rename"
+                                                onClick={() => startRename(c)}>
+                                            <Pencil size={13} />
+                                        </button>
+                                        <button className="chat-rail-action chat-rail-action--danger"
+                                                title="Delete" onClick={() => handleDelete(c.id)}>
+                                            <Trash2 size={13} />
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    ))}
+                </aside>
+
+
+
+                <div className="chat-main">
+                    
+
             <div className="card chat-shell">
                 <div className="chat-messages">
-                    {displayedMessages.length === 0 && (
+                    {messages.length === 0 && (
                         <div className="chat-empty">
                             <div className="chat-empty-icon"><Bot size={22} /></div>
                             <h3>How can I help with your finances?</h3>
@@ -306,7 +376,7 @@ export default function Assistant() {
                         </div>
                     )}
 
-                    {displayedMessages.map(msg => (
+                    {messages.map(msg => (
                         <div key={msg.id} className={`chat-row chat-row--${msg.role}`}>
                             <div className={`chat-avatar chat-avatar--${msg.role}`}>
                                 {msg.role === 'user' ? 'Y' : <Bot size={14} />}

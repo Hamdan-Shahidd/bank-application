@@ -68,6 +68,7 @@ class SqliteStorage:
         self._ensure_verification_column()
         self._ensure_calendar_columns()
         self._ensure_google_columns()
+        self._ensure_conversation_column()
 
     def _connect(self):
         conn = sqlite3.connect(self.path)
@@ -242,6 +243,42 @@ class SqliteStorage:
                     "ALTER TABLE users ADD COLUMN google_connected INTEGER NOT NULL DEFAULT 0"
                 )
 
+    def _ensure_conversation_column(self):
+        """Adds conversation_id to conversation_messages and moves every
+        pre-existing message into one 'Earlier messages' conversation per user."""
+        existing = {row["name"] for row in
+                    self.conn.execute("PRAGMA table_info(conversation_messages)")}
+
+        if "conversation_id" not in existing:
+            with self.conn:
+                # SQLite allows ADD COLUMN with a foreign key only when the
+                # default is NULL, which is what we want for the backfill.
+                self.conn.execute(
+                    "ALTER TABLE conversation_messages "
+                    "ADD COLUMN conversation_id INTEGER REFERENCES conversations(id)"
+                )
+                self.conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_conv_msg_conversation "
+                    "ON conversation_messages(conversation_id, id)"
+                )
+
+            # Backfill: any orphan message gets folded into one legacy thread.
+        orphan_users = [r["user_id"] for r in self.conn.execute(
+            "SELECT DISTINCT user_id FROM conversation_messages "
+            "WHERE conversation_id IS NULL"
+        )]
+        for user_id in orphan_users:
+            with self.conn:
+                cur = self.conn.execute(
+                    "INSERT INTO conversations (user_id, title) VALUES (?, ?)",
+                    (user_id, "Earlier messages"),
+                )
+                self.conn.execute(
+                    "UPDATE conversation_messages SET conversation_id = ? "
+                    "WHERE user_id = ? AND conversation_id IS NULL",
+                    (cur.lastrowid, user_id),
+                )
+
     def find_by_google_id(self, google_id):
         row = self.conn.execute(
             "SELECT * FROM users WHERE google_id = ?", (google_id,)).fetchone()
@@ -266,27 +303,98 @@ class SqliteStorage:
     The following functionality is added as a memory layer. Every message the agent sees is stored ->
     recent messages are retrived -> those messages are placed back in the AI prompt -> agent continue with context
     """
-    # Stores the message in the database. Role tells your agent who produced the message (user , assistant , system , tool)
-    def add_message(self, user_id, role, content, tool_name=None):
-        # Uses your database as context manager. it help manage the transaction.
+    
+    def add_message(self, user_id, role, content, tool_name=None, conversation_id=None):
         with self.conn:
-            # Executes the SQL equilants. Use placeholders ('?') which are replaced, prevents SQL injection.
-            # Database drivers handle these placeholder values.
             self.conn.execute(
-                "INSERT INTO conversation_messages (user_id, role, content, tool_name)"
-                " VALUES (?, ?, ?, ?)",
-                (user_id, role, content, tool_name)
+                "INSERT INTO conversation_messages"
+                " (user_id, conversation_id, role, content, tool_name)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (user_id, conversation_id, role, content, tool_name),
             )
+            if conversation_id is not None:
+                # keeps the sidebar sorted by real recency
+                self.conn.execute(
+                    "UPDATE conversations SET updated_at = datetime('now')"
+                    " WHERE id = ?",
+                    (conversation_id,),
+                )
 
-    # Retrives the most recent messages belonging to a particular user.
-    def recent_messages(self, user_id, limit=10):
-        # fetchall() takes all rows returned by the SQL and puts them into python (dictionary in our case).
+    def recent_messages(self, user_id, limit=10, conversation_id=None):
+        if conversation_id is None:
+            rows = self.conn.execute(
+                "SELECT role, content, tool_name, created_at FROM conversation_messages"
+                " WHERE user_id = ? ORDER BY id DESC LIMIT ?",
+                (user_id, limit),
+            ).fetchall()
+        else:
+            rows = self.conn.execute(
+                "SELECT role, content, tool_name, created_at FROM conversation_messages"
+                " WHERE user_id = ? AND conversation_id = ? ORDER BY id DESC LIMIT ?",
+                (user_id, conversation_id, limit),
+            ).fetchall()
+        return [dict(r) for r in reversed(rows)]
+
+
+    def create_conversation(self, user_id, title="New chat"):
+        with self.conn:
+            cur = self.conn.execute(
+                "INSERT INTO conversations (user_id, title) VALUES (?, ?)",
+                (user_id, title),
+            )
+        return cur.lastrowid
+
+    def list_conversations(self, user_id):
         rows = self.conn.execute(
-            "SELECT role, content, tool_name, created_at FROM conversation_messages"
-            " WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
-            (user_id, limit)
+            "SELECT c.id, c.title, c.created_at, c.updated_at,"
+            "       (SELECT COUNT(*) FROM conversation_messages m"
+            "        WHERE m.conversation_id = c.id) AS message_count"
+            " FROM conversations c"
+            " WHERE c.user_id = ?"
+            " ORDER BY c.updated_at DESC",
+            (user_id,),
         ).fetchall()
-        return [dict(r) for r in reversed(rows)]   # oldest -> newest for prompt order
+        return [dict(r) for r in rows]
+
+    def owns_conversation(self, user_id, conversation_id):
+        row = self.conn.execute(
+            "SELECT 1 FROM conversations WHERE id = ? AND user_id = ?",
+            (conversation_id, user_id),
+        ).fetchone()
+        return row is not None
+
+    def messages_for_conversation(self, user_id, conversation_id, limit=200):
+        rows = self.conn.execute(
+            "SELECT role, content, tool_name, created_at"
+            " FROM conversation_messages"
+            " WHERE user_id = ? AND conversation_id = ?"
+            " ORDER BY id ASC LIMIT ?",
+            (user_id, conversation_id, limit),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def rename_conversation(self, user_id, conversation_id, title):
+        with self.conn:
+            cur = self.conn.execute(
+                "UPDATE conversations SET title = ?, updated_at = datetime('now')"
+                " WHERE id = ? AND user_id = ?",
+                (title, conversation_id, user_id),
+            )
+        return cur.rowcount > 0
+
+    def delete_conversation(self, user_id, conversation_id):
+        with self.conn:
+            self.conn.execute(
+                "DELETE FROM conversation_messages"
+                " WHERE conversation_id = ? AND user_id = ?",
+                (conversation_id, user_id),
+            )
+            cur = self.conn.execute(
+                "DELETE FROM conversations WHERE id = ? AND user_id = ?",
+                (conversation_id, user_id),
+            )
+        return cur.rowcount > 0
+
 
     # Deltes the complete memory of a specific user.
     def clear_messages(self, user_id):

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from api.schemas import AssistantRequest, ConfirmRequest, AssistantResponse, MessageResponse , DepositConfirmRequest , WithdrawConfirmRequest
+from api.schemas import AssistantRequest, ConfirmRequest, AssistantResponse, MessageResponse , DepositConfirmRequest , WithdrawConfirmRequest , ConversationListResponse , RenameConversationRequest 
 from api.auth import current_user
 from api.main import bank
 from ai.agent import interpret , summarize_results
@@ -43,6 +43,11 @@ def _summarize_for_memory(kind, payload, response):
         return f"[{kind}] {payload}"
     return f"[{kind}] {response.details}"
 
+def _title_from(message):
+    """First line of the user's opening message becomes the chat title."""
+    cleaned = " ".join(message.split())[:48]
+    return cleaned or "New chat"
+
 
 
 @router.post("/assistant", response_model=AssistantResponse)
@@ -51,7 +56,16 @@ def assistant(body: AssistantRequest, user=Depends(current_user)):
     """
     Connection between our database memory and ai agent.
     """
-    history = bank.storage.recent_messages(user.user_id, limit=10)
+    conversation_id = body.conversation_id
+    if conversation_id is None:
+        # first message of a brand-new chat
+        conversation_id = bank.storage.create_conversation(
+            user.user_id, _title_from(body.message)
+        )
+    elif not bank.storage.owns_conversation(user.user_id, conversation_id):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    history = bank.storage.recent_messages(user.user_id, limit=10, conversation_id=conversation_id)
     facts = bank.storage.get_memory_facts(user.user_id)
     kind, payload = interpret(body.message, history=history, facts=facts)
 
@@ -190,12 +204,16 @@ def assistant(body: AssistantRequest, user=Depends(current_user)):
     else:
         response = AssistantResponse(kind="text", text=payload)
 
-    bank.storage.add_message(user.user_id, "human", body.message)
+    bank.storage.add_message(user.user_id, "human", body.message,
+                            conversation_id=conversation_id)
+    
     bank.storage.add_message(
         user.user_id, "ai",
         _summarize_for_memory(kind, payload, response),
         tool_name=kind,
+        conversation_id=conversation_id,
     )
+    response.conversation_id = conversation_id
     return response
 
 
@@ -228,3 +246,40 @@ def assistant_confirm_withdraw(body: WithdrawConfirmRequest, user=Depends(curren
         return MessageResponse(message="Withdrawal complete")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/assistant/conversations", response_model=ConversationListResponse)
+def list_conversations(user=Depends(current_user)):
+    return {"conversations": bank.storage.list_conversations(user.user_id)}
+
+
+@router.post("/assistant/conversations")
+def create_conversation(user=Depends(current_user)):
+    cid = bank.storage.create_conversation(user.user_id)
+    return {"id": cid, "title": "New chat"}
+
+
+@router.get("/assistant/conversations/{conversation_id}/messages")
+def conversation_messages(conversation_id: int, user=Depends(current_user)):
+    if not bank.storage.owns_conversation(user.user_id, conversation_id):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return {"messages": bank.storage.messages_for_conversation(
+        user.user_id, conversation_id)}
+
+
+@router.patch("/assistant/conversations/{conversation_id}")
+def rename_conversation(conversation_id: int,
+                        body: RenameConversationRequest,
+                        user=Depends(current_user)):
+    title = body.title.strip()[:80]
+    if not title:
+        raise HTTPException(status_code=400, detail="Title cannot be empty")
+    if not bank.storage.rename_conversation(user.user_id, conversation_id, title):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return {"id": conversation_id, "title": title}
+
+
+@router.delete("/assistant/conversations/{conversation_id}")
+def delete_conversation(conversation_id: int, user=Depends(current_user)):
+    if not bank.storage.delete_conversation(user.user_id, conversation_id):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return {"deleted": True}

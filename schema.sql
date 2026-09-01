@@ -41,3 +41,15 @@ CREATE TABLE IF NOT EXISTS user_memory(
 
 CREATE INDEX IF NOT EXISTS idx_tx_sender    ON transactions(sender_id);
 CREATE INDEX IF NOT EXISTS idx_tx_recipient ON transactions(recipient_id);
+
+-- Each chat thread the user can open, rename, continue or delete.
+CREATE TABLE IF NOT EXISTS conversations(
+    id          INTEGER PRIMARY KEY,
+    user_id     INTEGER NOT NULL REFERENCES users(id),
+    title       TEXT    NOT NULL DEFAULT 'New chat',
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+) STRICT;
+
+CREATE INDEX IF NOT EXISTS idx_conversations_user
+    ON conversations(user_id, updated_at);

@@ -41,8 +41,8 @@ export const deposit = (amount) =>
 export const transfer = (recipient_account, amount) =>
     api.post('/transfer', { recipient_account, amount })
 
-export const sendMessage = (message) =>
-    api.post('/assistant', { message })
+export const sendMessage = (message , conversation_id = null) =>
+    api.post('/assistant', { message, conversation_id })
 
 export const confirmTransfer = (recipient_account, amount) =>
     api.post('/assistant/confirm', { recipient_account, amount })
@@ -87,5 +87,20 @@ export const requestSignupCode = (gmail) =>
 
 export const verifySignupCode = (username, gmail, password, code) =>
     api.post('/signup/verify-code', { username, gmail, password, code })
+
+export const listConversations = () =>
+    api.get('/assistant/conversations')
+
+export const createConversation = () =>
+    api.post('/assistant/conversations')
+
+export const getConversationMessages = (id) =>
+    api.get(`/assistant/conversations/${id}/messages`)
+
+export const renameConversation = (id, title) =>
+    api.patch(`/assistant/conversations/${id}`, { title })
+
+export const deleteConversation = (id) =>
+    api.delete(`/assistant/conversations/${id}`)
 
 export default api
