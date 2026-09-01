@@ -6,6 +6,9 @@ import { Mail, Lock, User, KeyRound, Eye, EyeOff, ShieldCheck, Landmark } from '
 const OAUTH_ERRORS = {
     invalid_state: 'That sign-in link expired. Please try again.',
     oauth_failed: 'Google sign-in failed. Please try again.',
+    invalid_state: 'That sign-in link expired. Please try again.',
+    oauth_failed: 'Google sign-in failed. Please try again.',
+    limited: 'Signed in, but email and calendar access was not granted.',
 }
 
 export default function Login() {
@@ -112,10 +115,12 @@ export default function Login() {
                         </button>
                     </div>
 
-                    <button type="button" className="btn btn-secondary btn-full"
+                                        <button type="button" className="btn btn-secondary btn-full"
                         onClick={() => { window.location.href = '/auth/google/login' }}>
                         Continue with Google
                     </button>
+
+                    
 
                     <div className="auth-divider"><span>or</span></div>
 

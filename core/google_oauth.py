@@ -36,8 +36,9 @@ _pending_states = {}   # state -> "__anonymous__" (Entry A) or user_id (Entry B)
 
 
 def build_auth_url(user_id=None):
-    """user_id=None -> anonymous login flow (basic scopes, open to anyone).
-       Real id      -> connect flow (Gmail + Calendar, test users only)."""
+    """user_id=None -> login/signup flow (anonymous)
+       real user_id -> re-consent flow for an already-logged-in user
+       Both request identity + Gmail + Calendar, and a refresh token."""
     state = secrets.token_urlsafe(24)
     is_login = user_id is None
     _pending_states[state] = "__anonymous__" if is_login else user_id
@@ -46,17 +47,13 @@ def build_auth_url(user_id=None):
         "client_id": CLIENT_ID,
         "redirect_uri": REDIRECT_URI,
         "response_type": "code",
-        "scope": " ".join(BASIC_SCOPES if is_login else EXTENDED_SCOPES),
+        "scope": " ".join(EXTENDED_SCOPES),
         "state": state,
+        # access_type=offline is what makes Google issue a refresh token;
+        # prompt=consent is what makes it issue one *again* on repeat logins.
+        "access_type": "offline",
+        "prompt": "select_account consent",
     }
-
-    if is_login:
-        # No offline access needed -- we only want the id_token for identity.
-        params["prompt"] = "select_account"
-    else:
-        # We need a refresh token we can store and reuse for Gmail/Calendar.
-        params["access_type"] = "offline"
-        params["prompt"] = "consent"
 
     return f"{AUTH_URL}?{urlencode(params)}"
 

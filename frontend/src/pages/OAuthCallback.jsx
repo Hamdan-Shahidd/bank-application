@@ -7,10 +7,11 @@ export default function OAuthCallback() {
 
     useEffect(() => {
         const token = params.get('token')
+        const google = params.get('google')
         const error = params.get('error')
         if (token) {
             localStorage.setItem('token', token)
-            navigate('/dashboard')
+            navigate(google === 'limited' ? '/dashboard?google=limited' : '/dashboard')
         } else {
             navigate(`/login?error=${error || 'oauth_failed'}`)
         }

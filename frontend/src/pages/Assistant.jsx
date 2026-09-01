@@ -2,8 +2,6 @@ import { useState, useRef, useEffect } from 'react'
 import { sendMessage, sendPeopleQuery, confirmTransfer, confirmDeposit, confirmWithdraw, refineEmail, sendEmail, listConversations, getConversationMessages, renameConversation, deleteConversation } from '../api'
 import AppShell from '../components/AppShell'
 import { Send, Bot, Mail, Send as SendIcon, Wand2, Globe, ExternalLink, Pencil, Trash2, Plus, Check, X } from 'lucide-react'
-import api from '../api'
-import { useSearchParams } from 'react-router-dom'
 
 const PROMPTS = [
     'What is my current balance?',
@@ -33,7 +31,6 @@ export default function Assistant() {
     const [sending, setSending] = useState(false)
     const bottomRef = useRef(null)
     const textareaRef = useRef(null)
-    const [params] = useSearchParams()
     const [conversations, setConversations] = useState([])
     const [activeId, setActiveId] = useState(null)      // null = unsaved new chat
     const [loadingList, setLoadingList] = useState(true)
@@ -41,15 +38,6 @@ export default function Assistant() {
     const [renamingId, setRenamingId] = useState(null)
     const [renameValue, setRenameValue] = useState('')
 
-    useEffect(() => {
-        const g = params.get('google')
-        if (g === 'partial_scopes') {
-            setError('Please allow both Gmail and Calendar access when connecting.')
-        } else if (g === 'no_refresh_token') {
-            setError('Google did not return a refresh token. Remove this app at ' +
-                    'myaccount.google.com/permissions, then connect again.')
-        }
-    }, [params])
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -80,7 +68,7 @@ export default function Assistant() {
 
         try {
             const res = peopleDebugMode ? await sendPeopleQuery(question) : await sendMessage(question, activeId)
-            const { kind, text, proposal, details } = res.data
+            const { kind, text, proposal, details, conversation_id } = res.data
 
             if (conversation_id && conversation_id !== activeId) {
             setActiveId(conversation_id)                 
@@ -257,28 +245,12 @@ export default function Assistant() {
 
 
 
-
-
-    async function handleConnectGoogle() {
-    try {
-        const res = await api.get('/auth/google/connect-url')
-        window.location.href = res.data.url
-    } catch (err) {
-        console.error('Google connect error:', err)   // <-- add this line
-        setError('Could not start Google connection')
-    }
-}
-
-
     return (
         <AppShell>
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Apex Assistant</h1>
 
-                    <button className="btn btn-secondary" onClick={handleConnectGoogle}>
-                        Connect Google (Email &amp; Calendar)
-                    </button>
 
                     {/* TEMP: RAG debug toggle — remove when done testing */}
                     <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>

@@ -13,7 +13,8 @@ router = APIRouter()
 
 @router.get("/auth/google/login")
 def google_login():
-    """Entry A: anonymous, from the Login/Signup page."""
+    """Entry A: anonymous, from the Login/Signup page.
+       Requests identity + Gmail + Calendar in one consent."""
     return RedirectResponse(build_auth_url())
 
 
@@ -50,15 +51,25 @@ def google_callback(code: str, state: str):
             user = bank.storage.create(new_user)
             logger.info(f"SIGNUP VIA GOOGLE | user_id={user.user_id}")
 
-        # verify_identity() already rejected unverified addresses, so Google
-        # has vouched for this email. Needed for the SMTP fallback in
-        # /email/send, which link_google_account used to set for us.
         bank.storage.mark_gmail_verified(user.user_id)
 
-        # Deliberately NOT calling link_google_account here -- a basic-scope
-        # login has no Gmail/Calendar access to store.
+        granted_all = has_extended_scopes(tokens.get("scope"))
+
+        if refresh_token and granted_all:
+            bank.storage.link_google_account(
+                user.user_id, identity["google_id"], encrypt_token(refresh_token))
+            logger.info(f"GOOGLE CONNECTED AT LOGIN | user_id={user.user_id}")
+        elif refresh_token:
+            logger.warning(
+                f"PARTIAL SCOPES AT LOGIN | user_id={user.user_id} | "
+                f"granted={tokens.get('scope')!r}")
+        # else: basic-scope login, or a repeat login where Google returned no
+        # refresh token -- either way there is nothing new to store.
+
         jwt_token = create_token(user.user_id)
-        return RedirectResponse(f"{FRONTEND_URL}/oauth-callback?token={jwt_token}")
+        suffix = "" if (refresh_token and granted_all) else "&google=limited"
+        return RedirectResponse(
+            f"{FRONTEND_URL}/oauth-callback?token={jwt_token}{suffix}")
 
     else:
         if not refresh_token:
